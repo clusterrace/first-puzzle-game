@@ -185,7 +185,7 @@ func evt_piece_placed() -> void:
 	play_sfx("place_piece", "UI", -8.0, pitch)
 
 func evt_mirror_flipped() -> void:
-	"""Trigger: Mirror state toggled (/ ↔ \)."""
+	"""Trigger: Mirror state toggled (/ ↔ \\)."""
 	var flip_sound: String = ["mirror_flip_a", "mirror_flip_b"].pick_random()
 	play_sfx(flip_sound, "UI", -11.0)
 

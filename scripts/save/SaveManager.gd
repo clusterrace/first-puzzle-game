@@ -1,4 +1,3 @@
-class_name SaveManager
 ## Autoload singleton. Single access point for level completion persistence.
 ##
 ## Registered in project.godot:
