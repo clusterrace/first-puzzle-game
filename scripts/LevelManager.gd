@@ -1,4 +1,4 @@
-class_name LevelManager extends Node
+extends Node
 ## Autoload singleton: manages the Sight Lines level sequence.
 ##
 ## Registered in project.godot:
