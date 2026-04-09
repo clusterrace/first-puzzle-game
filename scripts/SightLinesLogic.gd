@@ -4,8 +4,11 @@
 # engine (RayPropagation). Emits fine-grained signals for every state change so
 # the display and audio layers can react without any logic coupling.
 #
+# Also owns the piece inventory (KAMA-17): validates placements against both
+# grid rules and available inventory before committing any state change.
+#
 # Zero visual/audio code. Zero input handling code.
-# All player actions arrive via the public API (place_piece, remove_piece, etc.)
+# All player actions arrive via the public API (try_place_piece, try_remove_piece, etc.)
 # All display/audio reactions subscribe to signals emitted by this node.
 #
 # Coordinate convention: Vector2i(row, col) — pos.x = row, pos.y = col.
@@ -15,12 +18,14 @@
 #   var logic := SightLinesLogic.new()
 #   add_child(logic)
 #   logic.bind_grid(grid_state)               # call once after level loads
+#   logic.bind_inventory(piece_inventory)     # call once after level loads
 #   logic.ray_paths_updated.connect(_on_ray_paths_updated)
 #   logic.target_lit.connect(_on_target_lit)
 #   logic.target_unlit.connect(_on_target_unlit)
 #   logic.puzzle_won.connect(_on_puzzle_won)
-#   # After any state-changing player action:
-#   logic.recalculate_all_rays()
+#   # Player placement:
+#   logic.try_place_piece(Vector2i(2, 3), GridEnums.PieceType.OBSERVER, GridEnums.Direction.EAST)
+#   logic.try_remove_piece(Vector2i(2, 3))
 
 class_name SightLinesLogic extends Node
 
@@ -49,6 +54,10 @@ signal puzzle_won()
 ## Set via bind_grid(). Null until bound.
 var _grid: Object = null
 
+## Bound piece inventory. Set via bind_inventory(). Null until bound.
+## When null, inventory checks are skipped (grid-only validation).
+var _inventory: PieceInventory = null
+
 ## True after puzzle_won has been emitted for the current level.
 ## Gates re-emission so puzzle_won fires at most once per bound grid.
 var _puzzle_solved: bool = false
@@ -59,7 +68,7 @@ var _puzzle_solved: bool = false
 var _prev_lit: Dictionary = {}
 
 
-# ── Public API ────────────────────────────────────────────────────────────────
+# ── Public API — Setup ────────────────────────────────────────────────────────
 
 ## Bind this logic node to a runtime grid state object and run the initial
 ## recalculation. Call once when a level's grid state is ready.
@@ -83,10 +92,103 @@ func unbind_grid() -> void:
 	_prev_lit = {}
 
 
+## Bind a PieceInventory to this logic node.
+## Must be called after bind_grid() when inventory management is required.
+## Pass null to disable inventory checks (useful for testing or editor tools).
+func bind_inventory(inv: PieceInventory) -> void:
+	_inventory = inv
+
+
+## Returns the currently bound PieceInventory, or null if none is bound.
+func get_inventory() -> PieceInventory:
+	return _inventory
+
+
+# ── Public API — Player actions ───────────────────────────────────────────────
+
+## Attempt to place [param piece_type] facing [param direction] at [param pos].
+##
+## Validates atomically — both checks must pass before any state changes:
+##   1. Grid: pos must be an empty SLOT tile (spec E6).
+##   2. Inventory: at least one piece of that type must be available.
+##
+## On success:
+##   - Consumes one piece from inventory.
+##   - Places piece on grid.
+##   - Recalculates all rays and emits signals.
+##   - Returns true.
+##
+## On failure (either check fails):
+##   - No state change.
+##   - Returns false.
+##   - Caller is responsible for any rejection feedback (audio/UI).
+func try_place_piece(
+		pos: Vector2i,
+		piece_type: int,
+		direction: int) -> bool:
+
+	if _grid == null:
+		push_error("SightLinesLogic.try_place_piece: no grid bound.")
+		return false
+
+	# Grid validation: must be an empty SLOT (rejects walls, targets, occupied, fixed).
+	if not _grid.is_placeable(pos):
+		return false
+
+	# Inventory validation: must have at least one piece of this type.
+	if _inventory != null and not _inventory.can_place(piece_type):
+		return false
+
+	# Both checks passed — commit atomically.
+	if _inventory != null:
+		_inventory.consume(piece_type)
+	_grid.place_piece(pos, piece_type as GridEnums.PieceType, direction as GridEnums.Direction)
+	recalculate_all_rays()
+	return true
+
+
+## Attempt to remove the player-placed piece at [param pos].
+##
+## Conditions for success:
+##   - A non-fixed piece must be present at pos.
+##
+## On success:
+##   - Returns the piece to inventory.
+##   - Removes piece from grid.
+##   - Recalculates all rays and emits signals.
+##   - Returns true.
+##
+## On failure (no removable piece):
+##   - No state change.
+##   - Returns false.
+func try_remove_piece(pos: Vector2i) -> bool:
+	if _grid == null:
+		push_error("SightLinesLogic.try_remove_piece: no grid bound.")
+		return false
+
+	# Validate: must have a non-fixed piece.
+	if not _grid.is_in_bounds(pos):
+		return false
+	var piece_type: int = _grid.get_piece_type(pos)
+	if piece_type == GridEnums.PieceType.NONE:
+		return false
+	if _grid.is_piece_fixed(pos):
+		return false
+
+	# Commit: remove from grid, then return to inventory.
+	_grid.remove_piece(pos)
+	if _inventory != null:
+		_inventory.return_piece(piece_type)
+	recalculate_all_rays()
+	return true
+
+
+# ── Public API — Recalculation ────────────────────────────────────────────────
+
 ## Trigger a full ray recalculation and emit all relevant signals.
 ##
 ## Call this after every player action that changes grid state:
-##   - piece placed or removed
+##   - piece placed or removed (prefer try_place_piece / try_remove_piece)
 ##   - observer rotated
 ##   - mirror orientation toggled
 ##   - undo or reset applied

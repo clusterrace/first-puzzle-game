@@ -9,10 +9,14 @@ class_name GridState
 ##   - Snapshots for the undo/reset system (S1 sub-task KAMA-15).
 ##
 ## Coordinate convention throughout:
-##   Function parameters use (row: int, col: int).
-##   Returned Vector2i positions use Vector2i(row, col) — .x = row, .y = col.
-##   This matches the prototype convention and the DIRECTION_DELTA table in
-##   GridEnums. Do NOT confuse with Godot screen-space (x = horizontal).
+##   All public methods accept and return Vector2i(row, col).
+##   pos.x = row  (vertical axis)  pos.y = col  (horizontal axis)
+##   Matches GridEnums.DIRECTION_DELTA and the RayPropagation grid interface.
+##
+## This is also the duck-typed implementation of the RayPropagation grid interface:
+##   get_tile_type, get_piece_type, get_piece_direction,
+##   get_all_observers, get_all_targets,
+##   set_target_lit, is_target_lit, is_in_bounds
 
 
 ## Emitted after any piece placement, removal, rotation, or snapshot restore.
@@ -78,7 +82,7 @@ func load_from_level_data(data: LevelData) -> void:
 	for fp: Dictionary in data.fixed_pieces:
 		var r: int = fp["row"]
 		var c: int = fp["col"]
-		if not is_in_bounds(r, c):
+		if not is_in_bounds(Vector2i(r, c)):
 			push_error("GridState: fixed piece out of bounds at (%d, %d)" % [r, c])
 			continue
 		var cell: Cell = _get_cell(r, c)
@@ -90,47 +94,49 @@ func load_from_level_data(data: LevelData) -> void:
 
 
 # ---------------------------------------------------------------------------
-# Query API
+# Query API  (Vector2i — matches RayPropagation grid interface)
 # ---------------------------------------------------------------------------
 
-## Returns true when (row, col) is within the grid boundaries.
-func is_in_bounds(row: int, col: int) -> bool:
-	return row >= 0 and row < rows and col >= 0 and col < cols
+## Returns true when [param pos] is within the grid boundaries.
+## Satisfies the RayPropagation grid interface (is_in_bounds(pos: Vector2i)).
+func is_in_bounds(pos: Vector2i) -> bool:
+	return pos.x >= 0 and pos.x < rows and pos.y >= 0 and pos.y < cols
 
 
-## Returns the base TileType of the cell. Asserts bounds.
-func get_tile_type(row: int, col: int) -> GridEnums.TileType:
-	return _get_cell(row, col).tile_type
+## Returns the base TileType of the cell at [param pos]. Asserts bounds.
+func get_tile_type(pos: Vector2i) -> GridEnums.TileType:
+	return _get_cell(pos.x, pos.y).tile_type
 
 
-## Returns the PieceType occupying the cell (NONE if empty).
-func get_piece_type(row: int, col: int) -> GridEnums.PieceType:
-	return _get_cell(row, col).piece_type
+## Returns the PieceType occupying [param pos] (NONE if empty).
+func get_piece_type(pos: Vector2i) -> GridEnums.PieceType:
+	return _get_cell(pos.x, pos.y).piece_type
 
 
-## Returns the facing direction of the piece at (row, col).
+## Returns the facing direction of the piece at [param pos].
 ## Only meaningful when get_piece_type() != NONE.
-func get_piece_direction(row: int, col: int) -> GridEnums.Direction:
-	return _get_cell(row, col).piece_direction
+func get_piece_direction(pos: Vector2i) -> GridEnums.Direction:
+	return _get_cell(pos.x, pos.y).piece_direction
 
 
-## Returns true when the piece at (row, col) is a fixed (author-placed) piece.
-func is_piece_fixed(row: int, col: int) -> bool:
-	return _get_cell(row, col).piece_is_fixed
+## Returns true when the piece at [param pos] is a fixed (author-placed) piece.
+func is_piece_fixed(pos: Vector2i) -> bool:
+	return _get_cell(pos.x, pos.y).piece_is_fixed
 
 
-## Returns true when the cell is lit.
+## Returns true when the cell at [param pos] is lit.
 ## Only meaningful for TARGET tiles; always false for other tile types.
-func is_target_lit(row: int, col: int) -> bool:
-	return _get_cell(row, col).is_lit
+## Satisfies the RayPropagation grid interface (is_target_lit(pos: Vector2i)).
+func is_target_lit(pos: Vector2i) -> bool:
+	return _get_cell(pos.x, pos.y).is_lit
 
 
-## Returns true when the player can place a piece here:
+## Returns true when the player can place a piece at [param pos]:
 ##   tile_type == SLOT and no piece is currently present.
-func is_placeable(row: int, col: int) -> bool:
-	if not is_in_bounds(row, col):
+func is_placeable(pos: Vector2i) -> bool:
+	if not is_in_bounds(pos):
 		return false
-	var cell: Cell = _get_cell(row, col)
+	var cell: Cell = _get_cell(pos.x, pos.y)
 	return (cell.tile_type  == GridEnums.TileType.SLOT
 		and cell.piece_type == GridEnums.PieceType.NONE)
 
@@ -157,20 +163,19 @@ func get_all_observers() -> Array[Vector2i]:
 
 
 # ---------------------------------------------------------------------------
-# Mutation API
+# Mutation API  (Vector2i)
 # ---------------------------------------------------------------------------
 
-## Places [param piece_type] facing [param direction] at (row, col).
+## Places [param piece_type] facing [param direction] at [param pos].
 ## Only succeeds on empty SLOT cells (is_placeable() == true).
 ## Returns true on success, false on failure (no signal emitted on failure).
 func place_piece(
-		row: int,
-		col: int,
+		pos: Vector2i,
 		piece_type: GridEnums.PieceType,
 		direction: GridEnums.Direction) -> bool:
-	if not is_placeable(row, col):
+	if not is_placeable(pos):
 		return false
-	var cell: Cell = _get_cell(row, col)
+	var cell: Cell = _get_cell(pos.x, pos.y)
 	cell.piece_type      = piece_type
 	cell.piece_direction = direction
 	cell.piece_is_fixed  = false
@@ -178,13 +183,13 @@ func place_piece(
 	return true
 
 
-## Removes the player-placed piece at (row, col).
+## Removes the player-placed piece at [param pos].
 ## Returns false if there is no piece or the piece is fixed.
 ## Fixed pieces are immovable and cannot be removed.
-func remove_piece(row: int, col: int) -> bool:
-	if not is_in_bounds(row, col):
+func remove_piece(pos: Vector2i) -> bool:
+	if not is_in_bounds(pos):
 		return false
-	var cell: Cell = _get_cell(row, col)
+	var cell: Cell = _get_cell(pos.x, pos.y)
 	if cell.piece_type == GridEnums.PieceType.NONE or cell.piece_is_fixed:
 		return false
 	cell.piece_type = GridEnums.PieceType.NONE
@@ -192,12 +197,12 @@ func remove_piece(row: int, col: int) -> bool:
 	return true
 
 
-## Rotates the player-placed piece at (row, col) 90 degrees clockwise.
+## Rotates the player-placed piece at [param pos] 90 degrees clockwise.
 ## Returns false if there is no piece or the piece is fixed.
-func rotate_piece_cw(row: int, col: int) -> bool:
-	if not is_in_bounds(row, col):
+func rotate_piece_cw(pos: Vector2i) -> bool:
+	if not is_in_bounds(pos):
 		return false
-	var cell: Cell = _get_cell(row, col)
+	var cell: Cell = _get_cell(pos.x, pos.y)
 	if cell.piece_type == GridEnums.PieceType.NONE or cell.piece_is_fixed:
 		return false
 	cell.piece_direction = GridEnums.rotate_cw(cell.piece_direction)
@@ -205,13 +210,14 @@ func rotate_piece_cw(row: int, col: int) -> bool:
 	return true
 
 
-## Updates the lit state of a TARGET tile.
+## Updates the lit state of a TARGET tile at [param pos].
 ## Called by the ray-tracing system (S2) after recomputing rays.
 ## Does NOT emit state_changed (to avoid re-entrant signal loops).
-func set_target_lit(row: int, col: int, lit: bool) -> void:
-	if not is_in_bounds(row, col):
+## Satisfies the RayPropagation grid interface (set_target_lit(pos: Vector2i, lit: bool)).
+func set_target_lit(pos: Vector2i, lit: bool) -> void:
+	if not is_in_bounds(pos):
 		return
-	var cell: Cell = _get_cell(row, col)
+	var cell: Cell = _get_cell(pos.x, pos.y)
 	if cell.tile_type != GridEnums.TileType.TARGET:
 		return
 	cell.is_lit = lit
