@@ -188,7 +188,7 @@ func _trace_ray(sr: int, sc: int, dir: int) -> void:
 			break
 
 		var cur := cell_center(nr, nc)
-		var t   := grid[nr][nc]
+		var t: int = grid[nr][nc]
 
 		if t == WALL:
 			ray_segs.append({"from": prev, "to": prev.lerp(cur, 0.5)})
@@ -242,7 +242,7 @@ func _input(event: InputEvent) -> void:
 			return
 		var r := cell.x
 		var c := cell.y
-		var t := grid[r][c]
+		var t: int = grid[r][c]
 
 		if t == SLOT and hand.size() > 0:
 			var piece: int = hand[0]
@@ -266,7 +266,7 @@ func _draw() -> void:
 	for r in range(ROWS):
 		for c in range(COLS):
 			var rect := Rect2(PAD_X + c * CELL, PAD_Y + r * CELL, CELL, CELL)
-			var t    := grid[r][c]
+			var t: int = grid[r][c]
 			var pos  := Vector2i(r, c)
 			match t:
 				WALL:  draw_rect(rect, C_WALL)
@@ -332,7 +332,7 @@ func _draw_observer(rect: Rect2, dir: int) -> void:
 	draw_circle(Vector2(cx, cy), r,        C_OBS)
 	draw_circle(Vector2(cx, cy), r * 0.44, C_BG)
 
-	var dv := DIR_V[dir]
+	var dv: Vector2i = DIR_V[dir]
 	var tip := Vector2(cx + dv.x * r * 1.6, cy + dv.y * r * 1.6)
 	draw_line(Vector2(cx, cy), tip, C_OBS, 3.0, true)
 	draw_circle(tip, 3.5, C_OBS)
