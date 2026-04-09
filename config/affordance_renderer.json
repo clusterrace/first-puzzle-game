@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "hover_valid_color":   [1.00, 1.00, 1.00, 0.13],
+  "hover_invalid_color": [1.00, 0.30, 0.30, 0.08],
+  "ghost_alpha":          0.40,
+  "reject_color":        [1.00, 0.15, 0.15, 0.55],
+  "reject_duration_sec":  0.22,
+  "affordance_color":    [1.00, 1.00, 1.00, 0.28]
+}

@@ -69,6 +69,11 @@ signal undo_unavailable()
 ## Emitted when the controller locks because the puzzle was won.
 signal input_locked()
 
+## Emitted when the mouse moves over a different grid cell.
+## Carries Vector2i(-1, -1) when the cursor is outside the grid or input is locked.
+## ui-programmer / affordance-layer: use this to update hover visuals and cursor shape.
+signal hover_cell_changed(cell: Vector2i)
+
 
 # ── State machine ─────────────────────────────────────────────────────────────
 
@@ -107,6 +112,9 @@ var _default_direction: GridEnums.Direction = GridEnums.Direction.EAST
 ## The piece type currently selected for placement, or -1 when IDLE/LOCKED.
 var _selected_piece_type: int = -1
 
+## The grid cell the mouse is currently over, or Vector2i(-1, -1) when off-grid.
+var _hover_cell: Vector2i = Vector2i(-1, -1)
+
 
 # ── Fallback key codes (used when InputMap actions are not registered) ────────
 
@@ -141,6 +149,7 @@ func setup(
 	_load_config()
 	_state = State.IDLE
 	_selected_piece_type = -1
+	_hover_cell = Vector2i(-1, -1)
 
 	# Lock input automatically when the puzzle is solved.
 	if not _logic.puzzle_won.is_connected(_on_puzzle_won):
@@ -186,10 +195,36 @@ func get_state() -> State:
 	return _state
 
 
+## Returns the default facing direction assigned to newly placed pieces.
+## Affordance renderers use this to orient ghost piece previews.
+func get_default_direction() -> GridEnums.Direction:
+	return _default_direction
+
+
+## Returns the grid cell the mouse is currently over, or Vector2i(-1, -1) when
+## the cursor is outside the grid or input is locked.
+func get_hover_cell() -> Vector2i:
+	return _hover_cell
+
+
 # ── Godot input hook ──────────────────────────────────────────────────────────
 
 func _unhandled_input(event: InputEvent) -> void:
 	if _grid == null or _logic == null:
+		return
+
+	# ── Mouse motion — track hover cell and emit hover_cell_changed ───────────
+	if event is InputEventMouseMotion:
+		var target: Vector2i
+		if _state == State.LOCKED:
+			target = Vector2i(-1, -1)
+		else:
+			var cell: Vector2i = _screen_to_grid(event.position)
+			target = cell if _grid.is_in_bounds(cell) else Vector2i(-1, -1)
+		if target != _hover_cell:
+			_hover_cell = target
+			hover_cell_changed.emit(_hover_cell)
+		# Motion events are NOT consumed — other nodes may also need them.
 		return
 
 	# ── Keyboard ──────────────────────────────────────────────────────────────
@@ -365,6 +400,10 @@ func _on_puzzle_won() -> void:
 	_state = State.LOCKED
 	_selected_piece_type = -1
 	input_locked.emit()
+	# Clear hover state so affordance layer resets cursor on win.
+	if _hover_cell != Vector2i(-1, -1):
+		_hover_cell = Vector2i(-1, -1)
+		hover_cell_changed.emit(_hover_cell)
 
 
 ## After CommandHistory.reset(), reload inventory from the original level data
