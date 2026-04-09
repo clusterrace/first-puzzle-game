@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "title": "Level 4 \u2014 Split Paths",
+  "rows": 5,
+  "cols": 6,
+  "grid": [
+    [3, 2, 2, 2, 2, 2],
+    [2, 2, 2, 2, 2, 2],
+    [2, 2, 3, 2, 2, 2],
+    [2, 2, 2, 2, 2, 2],
+    [2, 2, 2, 2, 2, 2]
+  ],
+  "fixed_pieces": [
+    { "row": 4, "col": 0, "piece_type": 1, "direction": 0 },
+    { "row": 4, "col": 4, "piece_type": 1, "direction": 0 }
+  ],
+  "player_inventory": [3]
+}
