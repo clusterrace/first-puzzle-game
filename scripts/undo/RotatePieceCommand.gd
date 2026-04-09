@@ -23,11 +23,11 @@ func _init(grid: GridState, row: int, col: int) -> void:
 
 
 func execute() -> bool:
-	return _grid.rotate_piece_cw(_row, _col)
+	return _grid.rotate_piece_cw(Vector2i(_row, _col))
 
 
 func undo() -> void:
 	# Three CW rotations = one CCW rotation (full 360° minus one step).
-	_grid.rotate_piece_cw(_row, _col)
-	_grid.rotate_piece_cw(_row, _col)
-	_grid.rotate_piece_cw(_row, _col)
+	_grid.rotate_piece_cw(Vector2i(_row, _col))
+	_grid.rotate_piece_cw(Vector2i(_row, _col))
+	_grid.rotate_piece_cw(Vector2i(_row, _col))

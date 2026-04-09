@@ -232,6 +232,26 @@ func clear_all_lit() -> void:
 				cell.is_lit = false
 
 
+## Toggles the orientation of a mirror piece between MIRROR_FWDSLASH and
+## MIRROR_BKSLASH at [param pos].
+## Returns false if the cell has no mirror piece or the piece is fixed.
+func toggle_mirror_orientation(pos: Vector2i) -> bool:
+	if not is_in_bounds(pos):
+		return false
+	var cell: Cell = _get_cell(pos.x, pos.y)
+	if cell.piece_is_fixed:
+		return false
+	match cell.piece_type:
+		GridEnums.PieceType.MIRROR_FWDSLASH:
+			cell.piece_type = GridEnums.PieceType.MIRROR_BKSLASH
+		GridEnums.PieceType.MIRROR_BKSLASH:
+			cell.piece_type = GridEnums.PieceType.MIRROR_FWDSLASH
+		_:
+			return false  # Not a mirror piece.
+	state_changed.emit()
+	return true
+
+
 ## Removes all player-placed (non-fixed) pieces from the grid.
 ## Emits state_changed once.
 func reset_all_player_pieces() -> void:
