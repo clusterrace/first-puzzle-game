@@ -17,17 +17,17 @@ var bus_ambient: int    = AudioServer.get_bus_index("Ambient SFX")
 
 # ── SFX Library (paths mapped to audio asset IDs) ─────────────────────────────
 var sfx_library: Dictionary = {
-	"place_piece": "res://audio/sfx/place_piece.ogg",
-	"mirror_flip_a": "res://audio/sfx/mirror_flip_a.ogg",
-	"mirror_flip_b": "res://audio/sfx/mirror_flip_b.ogg",
-	"ray_trace": "res://audio/sfx/ray_trace.ogg",
-	"target_hit_01": "res://audio/sfx/target_hit_01.ogg",
-	"target_hit_02": "res://audio/sfx/target_hit_02.ogg",
-	"target_hit_03": "res://audio/sfx/target_hit_03.ogg",
-	"target_hit_04": "res://audio/sfx/target_hit_04.ogg",
-	"win": "res://audio/sfx/win.ogg",
-	"level_next": "res://audio/sfx/level_next.ogg",
-	"hover": "res://audio/sfx/hover.ogg",
+	"place_piece": "res://audio/sfx/place_piece.wav",
+	"mirror_flip_a": "res://audio/sfx/mirror_flip_a.wav",
+	"mirror_flip_b": "res://audio/sfx/mirror_flip_b.wav",
+	"ray_trace": "res://audio/sfx/ray_trace.wav",
+	"target_hit_01": "res://audio/sfx/target_hit_01.wav",
+	"target_hit_02": "res://audio/sfx/target_hit_02.wav",
+	"target_hit_03": "res://audio/sfx/target_hit_03.wav",
+	"target_hit_04": "res://audio/sfx/target_hit_04.wav",
+	"win": "res://audio/sfx/win.wav",
+	"level_next": "res://audio/sfx/level_next.wav",
+	"hover": "res://audio/sfx/hover.wav",
 }
 
 # ── Voice Tracking (prevent voice-limit overflow) ─────────────────────────────

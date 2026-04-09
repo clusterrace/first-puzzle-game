@@ -152,6 +152,11 @@ func in_bounds(r: int, c: int) -> bool:
 # ── Ray tracing ───────────────────────────────────────────────────────────────
 func _update_rays() -> void:
 	ray_segs = []
+	var newly_lit_targets: Array[Vector2i] = []
+
+	# Track previous lit state for detecting newly lit targets
+	var previously_lit: Dictionary = lit.duplicate()
+
 	lit = {}
 	for r in range(ROWS):
 		for c in range(COLS):
@@ -162,11 +167,25 @@ func _update_rays() -> void:
 		if in_bounds(cell.x, cell.y) and grid[cell.x][cell.y] == OBS:
 			_trace_ray(cell.x, cell.y, obs_dirs[cell])
 
+	# Detect newly lit targets and trigger audio
+	for target_pos: Vector2i in lit.keys():
+		if lit[target_pos] and not previously_lit.get(target_pos, false):
+			newly_lit_targets.append(target_pos)
+
 	var all_lit := lit.size() > 0
 	for cell: Vector2i in lit.keys():
 		if not lit[cell]:
 			all_lit = false
 			break
+
+	# AUDIO: Trigger win celebration on state change
+	if all_lit and not win:
+		AudioManager.evt_level_complete()
+
+	# AUDIO: Play target hit sounds for newly illuminated targets
+	for i in range(newly_lit_targets.size()):
+		AudioManager.evt_target_lit(i)
+
 	win = all_lit
 	queue_redraw()
 
@@ -227,6 +246,10 @@ func _input(event: InputEvent) -> void:
 	if win:
 		if event is InputEventMouseButton and event.pressed:
 			var next := (level_idx + 1) % LEVELS.size()
+
+			# AUDIO: Level transition sound
+			await AudioManager.evt_advance_level()
+
 			load_level(next)
 		return
 
@@ -250,12 +273,24 @@ func _input(event: InputEvent) -> void:
 			grid[r][c] = piece
 			if piece == OBS:
 				obs_dirs[Vector2i(r, c)] = RT
+
+			# AUDIO: Piece placement confirmation
+			AudioManager.evt_piece_placed()
+
 			_update_rays()
 		elif t == MIR_F:
 			grid[r][c] = MIR_B
+
+			# AUDIO: Mirror flip confirmation
+			AudioManager.evt_mirror_flipped()
+
 			_update_rays()
 		elif t == MIR_B:
 			grid[r][c] = MIR_F
+
+			# AUDIO: Mirror flip confirmation
+			AudioManager.evt_mirror_flipped()
+
 			_update_rays()
 
 # ── Drawing ───────────────────────────────────────────────────────────────────
