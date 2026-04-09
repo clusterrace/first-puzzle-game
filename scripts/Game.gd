@@ -76,6 +76,12 @@ var win:          bool       = false
 var _level_title: String     = ""
 var font:         Font
 
+# ── Undo / Reset (KAMA-24 fix) ───────────────────────────────────────────────
+var _undo_stack:       Array      = []   # stack of {grid, obs_dirs, hand} snapshots
+var _initial_grid:     Array      = []   # level-load snapshot for Reset
+var _initial_obs_dirs: Dictionary = {}
+var _initial_hand:     Array      = []
+
 # ── S4 renderer references (KAMA-20) ─────────────────────────────────────────
 var _ray_renderer:    Node2D
 var _target_renderer: Node2D
@@ -142,6 +148,12 @@ func load_level(idx: int) -> void:
 	ray_segs   = []
 	win        = false
 	hover_cell = Vector2i(-1, -1)
+
+	# Snapshot initial state for Undo/Reset.
+	_undo_stack       = []
+	_initial_grid     = _deep_copy_grid(grid)
+	_initial_obs_dirs = obs_dirs.duplicate(true)
+	_initial_hand     = hand.duplicate()
 
 	# Collect target positions for S4 renderers.
 	var target_cells: Array[Vector2i] = []
@@ -334,6 +346,21 @@ func _input(event: InputEvent) -> void:
 		get_tree().change_scene_to_file("res://scenes/LevelSelect.tscn")
 		return
 
+	# Z → undo last action.  R → reset to level-load state.
+	if event is InputEventKey and event.pressed and not win:
+		if event.keycode == KEY_Z:
+			if _undo_stack.size() > 0:
+				_restore_snapshot(_undo_stack.pop_back())
+			return
+		if event.keycode == KEY_R:
+			_undo_stack = []
+			_restore_snapshot({
+				"grid":     _initial_grid,
+				"obs_dirs": _initial_obs_dirs,
+				"hand":     _initial_hand,
+			})
+			return
+
 	if win:
 		if event is InputEventMouseButton and event.pressed:
 			if LevelManager.is_last_level(level_idx):
@@ -362,6 +389,7 @@ func _input(event: InputEvent) -> void:
 		var t: int = grid[r][c]
 
 		if t == SLOT and hand.size() > 0:
+			_push_undo_snapshot()
 			var piece: int = hand[0]
 			hand.remove_at(0)
 			grid[r][c] = piece
@@ -369,14 +397,48 @@ func _input(event: InputEvent) -> void:
 				obs_dirs[Vector2i(r, c)] = RT
 			AudioManager.evt_piece_placed()
 			_update_rays()
+		elif t == OBS and obs_dirs.has(Vector2i(r, c)):
+			# Rotate placed observer CW: RT→DN→LT→UP→RT
+			_push_undo_snapshot()
+			obs_dirs[Vector2i(r, c)] = (obs_dirs[Vector2i(r, c)] + 1) % 4
+			AudioManager.evt_mirror_flipped()
+			_update_rays()
 		elif t == MIR_F:
+			_push_undo_snapshot()
 			grid[r][c] = MIR_B
 			AudioManager.evt_mirror_flipped()
 			_update_rays()
 		elif t == MIR_B:
+			_push_undo_snapshot()
 			grid[r][c] = MIR_F
 			AudioManager.evt_mirror_flipped()
 			_update_rays()
+
+
+# ── Undo / Reset helpers ─────────────────────────────────────────────────────
+
+func _deep_copy_grid(src: Array) -> Array:
+	var result: Array = []
+	for row in src:
+		result.append(row.duplicate())
+	return result
+
+
+func _push_undo_snapshot() -> void:
+	_undo_stack.append({
+		"grid":     _deep_copy_grid(grid),
+		"obs_dirs": obs_dirs.duplicate(true),
+		"hand":     hand.duplicate(),
+	})
+
+
+func _restore_snapshot(snap: Dictionary) -> void:
+	grid     = _deep_copy_grid(snap["grid"])
+	obs_dirs = snap["obs_dirs"].duplicate(true)
+	hand     = snap["hand"].duplicate()
+	win      = false
+	_update_rays()
+	queue_redraw()
 
 
 # ── Drawing ───────────────────────────────────────────────────────────────────
@@ -509,9 +571,12 @@ func _draw_hud() -> void:
 	draw_string(font, Vector2(700.0, 558.0), counter + done_mark,
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 13, C_UI)
 
-	# ESC hint bottom-left.
+	# Keyboard hints bottom-left.
+	var hint_col := Color(0.38, 0.40, 0.50)
+	draw_string(font, Vector2(PAD_X, 549.0), "Z \u2014 undo   R \u2014 reset",
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 11, hint_col)
 	draw_string(font, Vector2(PAD_X, 562.0), "ESC \u2014 level select",
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.38, 0.40, 0.50))
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 11, hint_col)
 
 
 func _grid_has_placed_mirror() -> bool:
