@@ -224,6 +224,8 @@ func _update_rays() -> void:
 	# AUDIO: Trigger win celebration on state change
 	if all_lit and not win:
 		AudioManager.evt_level_complete()
+		# Persist completion flag (KAMA-22).
+		SaveManager.mark_level_complete("level_%d" % level_idx)
 
 	# AUDIO: Play target hit sounds for newly illuminated targets
 	for i in range(newly_lit_targets.size()):
@@ -475,9 +477,10 @@ func _draw_hud() -> void:
 		draw_string(font, Vector2(hx, hy + 14), "All placed",
 			HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.48, 0.72, 0.48))
 
-	# Level counter bottom-right
+	# Level counter bottom-right; mark previously completed levels with a dot.
 	var counter := "%d / %d" % [level_idx + 1, LEVELS.size()]
-	draw_string(font, Vector2(700, 558), counter,
+	var done_marker := " *" if SaveManager.is_level_complete("level_%d" % level_idx) else ""
+	draw_string(font, Vector2(700, 558), counter + done_marker,
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 13, C_UI)
 
 func grid_has_placed_mirror() -> bool:
