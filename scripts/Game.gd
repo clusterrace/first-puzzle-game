@@ -1,7 +1,21 @@
 # Game.gd — Sight Lines Prototype
 # Hypothesis: grid-based sight-line placement is intuitive and satisfying without text.
 # Throwaway quality — do not carry into production.
+#
+# S4 rendering layer (KAMA-20): RayRenderer and TargetRenderer subscribe to the
+# signals below.  When KAMA-16 delivers the production signal bus, replace the
+# inline emit calls with connections from that bus.
 extends Node2D
+
+# ── S4 rendering signals (KAMA-20) ───────────────────────────────────────────
+## Emitted at level load; provides target cell list for TargetRenderer.
+signal level_loaded(target_cells: Array)
+## Emitted after every ray recalculation with the full segment list.
+signal rays_changed(segments: Array)
+## Emitted once per target whenever its lit state flips.
+signal target_state_changed(cell: Vector2i, is_lit: bool)
+## Emitted once when all targets become simultaneously lit.
+signal win_achieved()
 
 # ── Grid constants ────────────────────────────────────────────────────────────
 const CELL  = 80
@@ -111,10 +125,24 @@ var hover_cell: Vector2i = Vector2i(-1, -1)
 var win       : bool    = false
 var font      : Font
 
+# ── S4 renderer references (KAMA-20) ─────────────────────────────────────────
+var _ray_renderer    : Node2D  # RayRenderer — additive glow beams
+var _target_renderer : Node2D  # TargetRenderer — lit/unlit diamond tiles
+
 # ── Init ──────────────────────────────────────────────────────────────────────
 func _ready() -> void:
 	font = ThemeDB.fallback_font
+	_setup_renderers()
 	load_level(0)
+
+func _setup_renderers() -> void:
+	# TargetRenderer added first so target diamonds draw behind the ray beams.
+	_target_renderer = load("res://scripts/TargetRenderer.gd").new()
+	_target_renderer.setup(PAD_X, PAD_Y, CELL)
+	add_child(_target_renderer)
+
+	_ray_renderer = load("res://scripts/RayRenderer.gd").new()
+	add_child(_ray_renderer)
 
 func load_level(idx: int) -> void:
 	level_idx = idx
@@ -133,6 +161,21 @@ func load_level(idx: int) -> void:
 	ray_segs   = []
 	win        = false
 	hover_cell = Vector2i(-1, -1)
+
+	# Collect target positions and initialise rendering layer (KAMA-20).
+	var target_cells: Array[Vector2i] = []
+	for r in range(ROWS):
+		for c in range(COLS):
+			if grid[r][c] == TGT:
+				target_cells.append(Vector2i(r, c))
+
+	if _ray_renderer:
+		_ray_renderer.clear()
+	if _target_renderer:
+		_target_renderer.clear()
+		_target_renderer.set_targets(target_cells)
+
+	level_loaded.emit(target_cells)
 
 	_update_rays()
 	queue_redraw()
@@ -186,7 +229,25 @@ func _update_rays() -> void:
 	for i in range(newly_lit_targets.size()):
 		AudioManager.evt_target_lit(i)
 
+	var was_win := win
 	win = all_lit
+
+	# ── S4: push visual state to rendering layer (KAMA-20) ────────────────────
+	if _ray_renderer:
+		_ray_renderer.refresh(ray_segs)
+	rays_changed.emit(ray_segs)
+
+	for cell: Vector2i in lit.keys():
+		var is_lit: bool = lit[cell]
+		if _target_renderer:
+			_target_renderer.set_lit(cell, is_lit)
+		target_state_changed.emit(cell, is_lit)
+
+	if all_lit and not was_win:
+		if _target_renderer:
+			_target_renderer.set_win_pulse(true)
+		win_achieved.emit()
+
 	queue_redraw()
 
 func _trace_ray(sr: int, sc: int, dir: int) -> void:
@@ -312,14 +373,12 @@ func _draw() -> void:
 				OBS:     _draw_observer(rect, obs_dirs.get(pos, RT))
 				MIR_F:   _draw_mirror(rect, true)
 				MIR_B:   _draw_mirror(rect, false)
-				TGT:     _draw_target(rect, lit.get(pos, false))
+				# TGT: handled by TargetRenderer shader node (KAMA-20)
 
 			if pos == hover_cell and t == SLOT and hand.size() > 0:
 				draw_rect(rect, C_HOVER)
 
-	# Rays (drawn on top of cells, under grid lines)
-	for seg: Dictionary in ray_segs:
-		draw_line(seg["from"], seg["to"], C_RAY, 3.0, true)
+	# Rays: handled by RayRenderer shader node (KAMA-20)
 
 	# Grid lines
 	for r in range(ROWS + 1):
@@ -380,24 +439,6 @@ func _draw_mirror(rect: Rect2, is_fwd: bool) -> void:
 		draw_line(Vector2(e.x - m, p.y + m), Vector2(p.x + m, e.y - m), C_MIR, 4.0, true)
 	else:
 		draw_line(Vector2(p.x + m, p.y + m), Vector2(e.x - m, e.y - m), C_MIR, 4.0, true)
-
-func _draw_target(rect: Rect2, is_lit: bool) -> void:
-	var cx := rect.position.x + CELL * 0.5
-	var cy := rect.position.y + CELL * 0.5
-	var r  := CELL * 0.26
-	var col := C_TGT_ON if is_lit else C_TGT_OFF
-
-	draw_colored_polygon(
-		PackedVector2Array([
-			Vector2(cx,     cy - r),
-			Vector2(cx + r, cy    ),
-			Vector2(cx,     cy + r),
-			Vector2(cx - r, cy    ),
-		]),
-		col
-	)
-	if is_lit:
-		draw_arc(Vector2(cx, cy), r * 1.45, 0.0, TAU, 32, col.lightened(0.35), 2.0, true)
 
 func _draw_hud() -> void:
 	# Level title
