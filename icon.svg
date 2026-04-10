@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Sight Lines — App Icon
+     Design: cyan beam from left emitter hitting orange diamond target on a dark grid.
+     Colors match in-game shaders:
+       Beam:   #6BD6FF  (ray_beam.gdshader beam_color default)
+       Target: #FF9919  (target_tile.gdshader color_lit default)
+     Size: 128×128 px vector (Godot icon.svg)
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+
+  <!-- Background -->
+  <rect width="128" height="128" fill="#0e1a2b"/>
+
+  <!-- Subtle grid lines (3×3 cells at ~42 px each) -->
+  <g stroke="#1b3048" stroke-width="0.8" opacity="0.9">
+    <line x1="43" y1="0"   x2="43"  y2="128"/>
+    <line x1="85" y1="0"   x2="85"  y2="128"/>
+    <line x1="0"  y1="43"  x2="128" y2="43"/>
+    <line x1="0"  y1="85"  x2="128" y2="85"/>
+  </g>
+
+  <!-- Beam: wide outer glow -->
+  <line x1="22" y1="64" x2="107" y2="64"
+        stroke="#6BD6FF" stroke-width="20" stroke-linecap="round" stroke-opacity="0.07"/>
+  <!-- Beam: mid glow -->
+  <line x1="22" y1="64" x2="107" y2="64"
+        stroke="#6BD6FF" stroke-width="11" stroke-linecap="round" stroke-opacity="0.18"/>
+  <!-- Beam: inner glow -->
+  <line x1="22" y1="64" x2="107" y2="64"
+        stroke="#6BD6FF" stroke-width="5"  stroke-linecap="round" stroke-opacity="0.50"/>
+  <!-- Beam: bright core -->
+  <line x1="22" y1="64" x2="107" y2="64"
+        stroke="#DAFAFF" stroke-width="2"  stroke-linecap="round" stroke-opacity="0.95"/>
+
+  <!-- Emitter (left cell centre at 21,64) -->
+  <circle cx="21" cy="64" r="14" fill="#6BD6FF" opacity="0.08"/>
+  <circle cx="21" cy="64" r="9"  fill="#6BD6FF" opacity="0.22"/>
+  <circle cx="21" cy="64" r="5"  fill="#A8EEFF" opacity="0.85"/>
+  <circle cx="21" cy="64" r="3"  fill="#FFFFFF"/>
+
+  <!-- Target diamond (right cell centre at 107,64) — lit state (orange) -->
+  <!-- Outer glow -->
+  <polygon points="107,48 123,64 107,80 91,64"  fill="#FF9919" opacity="0.10"/>
+  <!-- Mid glow -->
+  <polygon points="107,53 119,64 107,75 95,64"  fill="#FF9919" opacity="0.22"/>
+  <!-- Diamond fill -->
+  <polygon points="107,57 115,64 107,71 99,64"  fill="#FF9919" opacity="0.90"/>
+  <!-- Bright highlight on lit diamond -->
+  <circle cx="107" cy="64" r="3" fill="#FFD070" opacity="0.95"/>
+
+</svg>
