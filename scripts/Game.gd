@@ -402,9 +402,10 @@ func _reflect(d: int, is_fwd: bool) -> int:
 # ── Input ─────────────────────────────────────────────────────────────────────
 
 func _input(event: InputEvent) -> void:
-	# ESC → open pause menu (KAMA-31).
+	# ESC → open pause menu (KAMA-31). Guard: not while win overlay is active.
 	if event is InputEventKey and event.pressed \
-			and event.keycode == KEY_ESCAPE:
+			and event.keycode == KEY_ESCAPE \
+			and not (_complete_overlay and _complete_overlay.visible):
 		_open_pause_menu()
 		return
 

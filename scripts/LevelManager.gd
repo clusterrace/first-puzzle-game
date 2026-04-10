@@ -11,13 +11,20 @@ extends Node
 ##   var level_id := LevelManager.get_level_id(LevelManager.current_index)
 
 
-## Ordered list of level file paths. Sprint 1: linear sequence, no branching.
+## Ordered list of level file paths. Sprint 2: levels 1–12.
 const LEVEL_PATHS: Array[String] = [
 	"res://levels/level_01.json",
 	"res://levels/level_02.json",
 	"res://levels/level_03.json",
 	"res://levels/level_04.json",
 	"res://levels/level_05.json",
+	"res://levels/level_06.json",
+	"res://levels/level_07.json",
+	"res://levels/level_08.json",
+	"res://levels/level_09.json",
+	"res://levels/level_10.json",
+	"res://levels/level_11.json",
+	"res://levels/level_12.json",
 ]
 
 ## Index of the currently active level (0-based).

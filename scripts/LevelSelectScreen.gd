@@ -146,7 +146,7 @@ func _input(event: InputEvent) -> void:
 				var r := _card_rect(i)
 				if r.has_point(event.position) and event.position.y >= HEADER_H:
 					LevelManager.current_index = i
-					get_tree().change_scene_to_file("res://scenes/Game.tscn")
+					SceneTransition.change_scene("res://scenes/Game.tscn")
 					return
 
 	if event is InputEventKey and event.pressed:
