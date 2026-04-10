@@ -14,6 +14,7 @@ extends Node
 var bus_master: int     = AudioServer.get_bus_index("Master")
 var bus_ui: int         = AudioServer.get_bus_index("UI")
 var bus_ambient: int    = AudioServer.get_bus_index("Ambient SFX")
+var bus_music: int      = AudioServer.get_bus_index("Music")
 
 # ── SFX Library (paths mapped to audio asset IDs) ─────────────────────────────
 var sfx_library: Dictionary = {
@@ -48,6 +49,9 @@ var voice_priority: Dictionary = {
 var ducking_state: Dictionary = {}  # {bus_name: {target_db, fade_ms, start_time}}
 var is_in_win_state: bool = false
 
+# ── Music Player ──────────────────────────────────────────────────────────────
+var music_player: AudioStreamPlayer = null
+
 # ── Init ──────────────────────────────────────────────────────────────────────
 func _ready() -> void:
 	# Initialize active voice tracking
@@ -56,6 +60,9 @@ func _ready() -> void:
 
 	# Verify buses exist; create if missing
 	_ensure_buses()
+
+	# Create music player
+	_create_music_player()
 
 # ── Main API: Play SFX ────────────────────────────────────────────────────────
 func play_sfx(sfx_id: String, bus: String = "UI", volume_db: float = 0.0, pitch_scale: float = 1.0) -> void:
@@ -153,6 +160,7 @@ func unduck_bus(bus_name: String, fade_ms: int = 300) -> void:
 		"Master": 0.0,
 		"UI": -8.0,
 		"Ambient SFX": -14.0,
+		"Music": -12.0,
 	}.get(bus_name, 0.0)
 
 	duck_bus(bus_name, nominal_db, fade_ms)
@@ -162,9 +170,10 @@ func on_win_state_enter() -> void:
 	"""Call when puzzle is solved and win overlay appears."""
 	is_in_win_state = true
 
-	# Duck ambient SFX and UI to highlight win sound
+	# Duck background audio to highlight win sound
 	duck_bus("Ambient SFX", -20.0, 200)
 	duck_bus("UI", -11.0, 200)
+	duck_bus("Music", -20.0, 200)
 
 	# Play win sound
 	play_sfx("win", "Master", -4.0)
@@ -176,6 +185,7 @@ func on_win_state_exit() -> void:
 	# Restore ducked buses
 	unduck_bus("Ambient SFX", 300)
 	unduck_bus("UI", 300)
+	unduck_bus("Music", 300)
 
 # ── Event Triggers (called from Game.gd) ──────────────────────────────────────
 func evt_piece_placed() -> void:
@@ -225,6 +235,35 @@ func evt_hover_valid_slot() -> void:
 	# play_sfx("hover", "UI", -16.0)
 	pass
 
+# ── Music Control (ambient loop) ──────────────────────────────────────────────
+func _create_music_player() -> void:
+	"""Create and configure the music player for ambient loop."""
+	if music_player:
+		music_player.queue_free()
+
+	music_player = AudioStreamPlayer.new()
+	music_player.bus = "Music"
+	music_player.volume_db = -12.0
+	music_player.stream = load("res://audio/music/ambient_loop.ogg")
+	add_child(music_player)
+
+func evt_music_start() -> void:
+	"""Start ambient music loop."""
+	if not music_player:
+		_create_music_player()
+
+	if music_player and not music_player.playing:
+		music_player.play()
+		print("AudioManager: Ambient music loop started")
+
+func evt_music_stop() -> void:
+	"""Stop ambient music loop with fade-out."""
+	if music_player and music_player.playing:
+		var tween = create_tween()
+		tween.tween_property(music_player, "volume_db", -80.0, 0.5)
+		tween.tween_callback(func(): if music_player: music_player.stop())
+		print("AudioManager: Ambient music loop stopped")
+
 # ── Bus Maintenance ──────────────────────────────────────────────────────────
 func _ensure_buses() -> void:
 	"""Create missing audio buses if they don't exist."""
@@ -232,11 +271,19 @@ func _ensure_buses() -> void:
 		var new_bus: int = AudioServer.get_bus_count()
 		AudioServer.add_bus(new_bus)
 		AudioServer.set_bus_name(new_bus, "UI")
+		AudioServer.set_bus_volume_db(new_bus, -8.0)
 
 	if AudioServer.get_bus_index("Ambient SFX") == -1:
 		var new_bus: int = AudioServer.get_bus_count()
 		AudioServer.add_bus(new_bus)
 		AudioServer.set_bus_name(new_bus, "Ambient SFX")
+		AudioServer.set_bus_volume_db(new_bus, -14.0)
+
+	if AudioServer.get_bus_index("Music") == -1:
+		var new_bus: int = AudioServer.get_bus_count()
+		AudioServer.add_bus(new_bus)
+		AudioServer.set_bus_name(new_bus, "Music")
+		AudioServer.set_bus_volume_db(new_bus, -12.0)
 
 # ── Update Loop (for bus ducking automation) ──────────────────────────────────
 func _process(_delta: float) -> void:

@@ -16,21 +16,24 @@ This directory contains the complete sound design specification and implementati
 ```
 audio/
 ├── README.md                          (this file)
-├── SOUND_DESIGN.md                   (specifications)
-├── PLACEHOLDER_SFX_SPECS.md          (generation guide)
+├── SOUND_DESIGN.md                   (SFX specifications)
+├── AMBIENT_MUSIC_SPEC.md             (music specification & integration)
+├── PLACEHOLDER_SFX_SPECS.md          (SFX generation guide)
 ├── INTEGRATION.md                    (implementation guide)
-└── sfx/                               (create this)
-    ├── place_piece.ogg
-    ├── mirror_flip_a.ogg
-    ├── mirror_flip_b.ogg
-    ├── ray_trace.ogg
-    ├── target_hit_01.ogg
-    ├── target_hit_02.ogg
-    ├── target_hit_03.ogg
-    ├── target_hit_04.ogg
-    ├── win.ogg
-    ├── level_next.ogg
-    └── hover.ogg
+├── sfx/                               (create this)
+│   ├── place_piece.ogg
+│   ├── mirror_flip_a.ogg
+│   ├── mirror_flip_b.ogg
+│   ├── ray_trace.ogg
+│   ├── target_hit_01.ogg
+│   ├── target_hit_02.ogg
+│   ├── target_hit_03.ogg
+│   ├── target_hit_04.ogg
+│   ├── win.ogg
+│   ├── level_next.ogg
+│   └── hover.ogg
+└── music/                             (create this)
+    └── ambient_loop.ogg              (seamless 60s loop)
 ```
 
 ### Quick Integration (5 Steps)
@@ -122,14 +125,14 @@ audio/
 
 ```
 Master (0 dB)
-├── UI               (-8 dB nominal)
-│   └── Contains: place_piece, mirror_flip, hover, target_hit (initial)
+├── UI               (-8 dB nominal, ducks to -11 dB during win)
+│   └── Contains: place_piece, mirror_flip, hover, target_hit
 │
-├── Ambient SFX      (-14 dB nominal)
+├── Ambient SFX      (-14 dB nominal, ducks to -20 dB during win)
 │   └── Contains: ray_trace
 │
-└── [Future]
-    └── Music (reserved, not used in prototype)
+└── Music            (-12 dB nominal, ducks to -20 dB during win)
+    └── Contains: ambient_loop (seamless background music)
 ```
 
 ### Ducking Rules
@@ -176,17 +179,23 @@ No voice starvation expected in normal gameplay.
 
 ## Implementation Checklist
 
-- [ ] Read SOUND_DESIGN.md (understand audio philosophy and specs)
+- [ ] Read SOUND_DESIGN.md (understand SFX philosophy and specs)
+- [ ] Read AMBIENT_MUSIC_SPEC.md (understand music setup and spec)
 - [ ] Read PLACEHOLDER_SFX_SPECS.md (learn how to generate/source audio)
 - [ ] Set up AudioManager as autoload in Godot
-- [ ] Create audio buses (UI, Ambient SFX)
+- [ ] Create audio buses (UI, Ambient SFX, Music)
 - [ ] Create `audio/sfx/` directory structure
+- [ ] Create `audio/music/` directory structure
 - [ ] Generate or source 11 placeholder SFX assets
-- [ ] Export assets as .ogg files (44.1 kHz, mono, 16-bit)
-- [ ] Follow INTEGRATION.md to modify Game.gd (7 event calls)
-- [ ] Test in-game and verify sounds trigger correctly
+- [ ] Generate or source 1 ambient music loop (60s seamless)
+- [ ] Export SFX assets as .ogg files (44.1 kHz, mono, 16-bit)
+- [ ] Export music as .ogg file (44.1 kHz, stereo or mono, 16-bit)
+- [ ] Follow INTEGRATION.md to modify Game.gd (7 SFX event calls + music events)
+- [ ] Add `AudioManager.evt_music_start()` call on game/level load
+- [ ] Test in-game and verify sounds + music trigger correctly
+- [ ] Verify music loops seamlessly without audible artifacts
 - [ ] Tune volumes and timings based on playtester feedback
-- [ ] Commission professional SFX once mechanics validated
+- [ ] Commission professional SFX and music once mechanics validated
 
 ---
 
@@ -274,6 +283,7 @@ No voice starvation expected in normal gameplay.
 See the detailed docs in this directory:
 - **"How do I generate the sounds?"** → PLACEHOLDER_SFX_SPECS.md
 - **"How do I integrate this into code?"** → INTEGRATION.md
-- **"What are the audio specs?"** → SOUND_DESIGN.md
+- **"What are the SFX specs?"** → SOUND_DESIGN.md
+- **"What about ambient music?"** → AMBIENT_MUSIC_SPEC.md
 - **"How does the mixing work?"** → SOUND_DESIGN.md § 4–5
 
