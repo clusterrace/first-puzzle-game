@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "title": "Level 9 \u2014 Detour",
+  "rows": 5,
+  "cols": 6,
+  "grid": [
+    [2, 2, 2, 2, 2, 2],
+    [2, 2, 2, 4, 2, 2],
+    [2, 2, 2, 2, 2, 2],
+    [2, 2, 3, 2, 2, 2],
+    [2, 2, 2, 2, 2, 2]
+  ],
+  "fixed_pieces": [
+    { "row": 4, "col": 3, "piece_type": 1, "direction": 0 }
+  ],
+  "player_inventory": [2, 3]
+}

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "title": "Level 12 \u2014 Grand Finale",
+  "rows": 7,
+  "cols": 7,
+  "grid": [
+    [2, 2, 2, 2, 2, 2, 2],
+    [2, 2, 2, 2, 2, 2, 2],
+    [2, 4, 2, 2, 2, 4, 2],
+    [2, 2, 2, 2, 2, 2, 2],
+    [2, 2, 3, 2, 3, 2, 2],
+    [2, 2, 2, 3, 2, 2, 2],
+    [2, 2, 2, 2, 2, 2, 2]
+  ],
+  "fixed_pieces": [
+    { "row": 6, "col": 1, "piece_type": 1, "direction": 0 },
+    { "row": 6, "col": 5, "piece_type": 1, "direction": 0 },
+    { "row": 6, "col": 3, "piece_type": 1, "direction": 0 }
+  ],
+  "player_inventory": [2, 3]
+}

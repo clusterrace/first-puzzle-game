@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "title": "Level 11 \u2014 Minefield",
+  "rows": 6,
+  "cols": 7,
+  "grid": [
+    [2, 2, 2, 2, 2, 2, 2],
+    [2, 2, 2, 2, 2, 2, 2],
+    [2, 4, 2, 2, 2, 4, 2],
+    [2, 2, 2, 2, 2, 2, 2],
+    [3, 2, 4, 2, 4, 2, 3],
+    [2, 2, 2, 2, 2, 2, 2]
+  ],
+  "fixed_pieces": [
+    { "row": 5, "col": 1, "piece_type": 1, "direction": 0 },
+    { "row": 5, "col": 5, "piece_type": 1, "direction": 0 }
+  ],
+  "player_inventory": [2, 3]
+}
