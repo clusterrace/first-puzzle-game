@@ -1,0 +1,169 @@
+{
+  "_comment": "Machine-readable palette for Sight Lines — sourced from Game.gd constants and shader uniforms. KAMA-44.",
+  "_version": "1.0",
+  "_delta_e_metric": "CIEDE2000",
+  "_delta_e_note": "delta_e_tolerance is the maximum allowed CIEDE2000 difference between any sampled pixel and the reference hex when verifying a production screenshot.",
+
+  "palette": [
+    {
+      "name":       "background",
+      "hex":        "#14171F",
+      "float_rgb":  [0.08, 0.09, 0.12],
+      "role":       "Full-screen base fill. Dominant surface. Near-black with a cool blue-black tint.",
+      "source":     "Game.gd C_BG",
+      "delta_e_tolerance": 5,
+      "wcag_note":  "Background anchor for all contrast ratio calculations."
+    },
+    {
+      "name":       "dark_slot",
+      "hex":        "#1C212B",
+      "float_rgb":  [0.11, 0.13, 0.17],
+      "role":       "Empty placeable slot tiles. Slightly lighter than background to hint interactability.",
+      "source":     "Game.gd C_DARK",
+      "delta_e_tolerance": 5,
+      "wcag_note":  null
+    },
+    {
+      "name":       "wall",
+      "hex":        "#383B45",
+      "float_rgb":  [0.22, 0.23, 0.27],
+      "role":       "Impassable wall tiles. Must read as solid and non-interactive.",
+      "source":     "Game.gd C_WALL",
+      "delta_e_tolerance": 5,
+      "wcag_note":  null
+    },
+    {
+      "name":       "observer",
+      "hex":        "#61B3FF",
+      "float_rgb":  [0.38, 0.70, 1.00],
+      "role":       "Observer piece fill and icon. The only saturated cool-blue hue in the piece layer.",
+      "source":     "Game.gd C_OBS",
+      "delta_e_tolerance": 6,
+      "wcag_note":  null
+    },
+    {
+      "name":       "mirror",
+      "hex":        "#CCD6F5",
+      "float_rgb":  [0.80, 0.84, 0.96],
+      "role":       "Mirror piece diagonal stroke. Near-white with a cool tint — reflective surface.",
+      "source":     "Game.gd C_MIR / GridAffordanceRenderer.gd _C_MIR",
+      "delta_e_tolerance": 6,
+      "wcag_note":  null
+    },
+    {
+      "name":       "ray_beam",
+      "hex":        "#6BD6FF",
+      "float_rgb":  [0.42, 0.84, 1.00],
+      "role":       "Sight ray beam (additive blend). Bright cyan in context; appears lighter against background due to blend_add.",
+      "source":     "ray_beam.gdshader beam_color default / Game.gd C_RAY",
+      "delta_e_tolerance": 12,
+      "wcag_note":  "Additive blend means composite pixel color varies by background. Tolerance is wider than flat-fill colors.",
+      "blend_mode": "additive"
+    },
+    {
+      "name":       "target_unlit",
+      "hex":        "#7A3333",
+      "float_rgb":  [0.48, 0.20, 0.20],
+      "role":       "Standard target tile in unlit (unfulfilled) state. Reddish-brown diamond.",
+      "source":     "target_tile.gdshader color_unlit default",
+      "delta_e_tolerance": 8,
+      "wcag_note":  null
+    },
+    {
+      "name":       "target_lit",
+      "hex":        "#FF991A",
+      "float_rgb":  [1.00, 0.60, 0.10],
+      "role":       "Standard target tile in lit (fulfilled) state. Warm amber-orange — the win condition color.",
+      "source":     "target_tile.gdshader color_lit default",
+      "delta_e_tolerance": 8,
+      "wcag_note":  null
+    },
+    {
+      "name":       "avoid_target_unlit",
+      "hex":        "#1A8C99",
+      "float_rgb":  [0.10, 0.55, 0.60],
+      "role":       "Must-not-light (TARGET_AVOID) tile in safe unlit state. Teal — do not disturb.",
+      "source":     "TargetRenderer.gd _AVOID_COLOR_UNLIT",
+      "delta_e_tolerance": 8,
+      "wcag_note":  null
+    },
+    {
+      "name":       "avoid_target_lit",
+      "hex":        "#F22626",
+      "float_rgb":  [0.95, 0.15, 0.15],
+      "role":       "Must-not-light tile in struck (forbidden) state. Alarm red — win blocked.",
+      "source":     "TargetRenderer.gd _AVOID_COLOR_LIT",
+      "delta_e_tolerance": 8,
+      "wcag_note":  null
+    },
+    {
+      "name":       "ui_text",
+      "hex":        "#9499B3",
+      "float_rgb":  [0.58, 0.60, 0.70],
+      "role":       "UI labels, counters, status text. Muted cool grey — recessive but legible.",
+      "source":     "Game.gd C_UI",
+      "delta_e_tolerance": 5,
+      "wcag_note":  "Must achieve ≥ 4.5:1 contrast ratio against background #14171F (WCAG AA)."
+    },
+    {
+      "name":       "title_text",
+      "hex":        "#B3B8D1",
+      "float_rgb":  [0.70, 0.72, 0.82],
+      "role":       "Level title and prominent labels. Slightly brighter than ui_text for hierarchy.",
+      "source":     "Game.gd C_TITLE",
+      "delta_e_tolerance": 5,
+      "wcag_note":  "Must achieve ≥ 4.5:1 contrast ratio against background #14171F (WCAG AA)."
+    },
+    {
+      "name":       "win_state",
+      "hex":        "#38FF73",
+      "float_rgb":  [0.22, 1.00, 0.45],
+      "role":       "Win condition achieved. Bright green — reserved exclusively for win events. Must not appear during normal gameplay.",
+      "source":     "Game.gd C_WIN",
+      "delta_e_tolerance": 8,
+      "wcag_note":  null
+    }
+  ],
+
+  "contrast_requirements": [
+    {
+      "foreground": "ui_text",
+      "background": "background",
+      "minimum_ratio": 4.5,
+      "standard": "WCAG 2.1 AA (normal text)"
+    },
+    {
+      "foreground": "title_text",
+      "background": "background",
+      "minimum_ratio": 4.5,
+      "standard": "WCAG 2.1 AA (normal text)"
+    }
+  ],
+
+  "minimum_delta_e_between": [
+    {
+      "a": "wall",
+      "b": "background",
+      "minimum_delta_e": 12,
+      "reason": "Walls must be legible against background at a glance."
+    },
+    {
+      "a": "dark_slot",
+      "b": "background",
+      "minimum_delta_e": 4,
+      "reason": "Slots must be perceivably different from background to suggest interactability."
+    },
+    {
+      "a": "target_unlit",
+      "b": "target_lit",
+      "minimum_delta_e": 30,
+      "reason": "Target state change must be immediately obvious — core gameplay signal."
+    },
+    {
+      "a": "observer",
+      "b": "ray_beam",
+      "minimum_delta_e": 5,
+      "reason": "Observer and ray must be distinguishable so the piece is not confused with the ray."
+    }
+  ]
+}

@@ -1,0 +1,194 @@
+# rubric.yaml — VLM (vision-language model) rubric for Sight Lines art QA
+# Version: 1.0  KAMA-44
+# Band: 3_holistic — advisory only. Results are NON-BLOCKING by default.
+#
+# Protocol:
+#   Each item is a binary (yes/no) question posed to a VLM about a screenshot.
+#   A "yes" answer means the criterion passes.
+#   The VLM is provided with the screenshot and the applicable reference image(s)
+#   from design/art/reference/ as listed in `references`.
+#
+# Fields per item:
+#   id            — unique identifier, stable across revisions
+#   question      — exact prompt to send to the VLM (binary yes/no expected)
+#   applies_to_scenes — list of scene tags that must have this screenshot captured
+#   references    — reference images from design/art/reference/ to supply as context
+#   severity      — "advisory" (log only) | "warning" (log + flag) | "blocking" (fail build)
+#   notes         — human-readable rationale
+#
+# Scene tags:
+#   gameplay        — active puzzle with pieces placed, ray visible
+#   gameplay_win    — puzzle just won (win overlay / pulse active)
+#   gameplay_idle   — puzzle loaded, no pieces placed, idle state
+#   main_menu       — main menu screen
+#   level_select    — level select screen
+#   pause_menu      — pause overlay visible
+#   level_complete  — level complete overlay visible
+
+_meta:
+  game: Sight Lines
+  version: "1.0"
+  authored: KAMA-44
+  band: 3_holistic
+  advisory_by_default: true
+
+items:
+
+  # ── Ray beam appearance ──────────────────────────────────────────────────────
+
+  - id: R-RAY-01
+    question: >
+      Does the sight ray (beam of light traveling across the grid) appear as a
+      bright cyan or light-blue glowing line against a dark background, with a
+      clearly brighter core and a softer glow halo around it? Answer yes or no.
+    applies_to_scenes: [gameplay]
+    references: []
+    severity: warning
+    notes: >
+      Checks that the additive blend shader is producing the intended glow
+      effect. A flat/matte line or an incorrect color (e.g. white, yellow)
+      indicates a rendering regression.
+
+  - id: R-RAY-02
+    question: >
+      At the point where the sight ray terminates (hits a wall or the grid
+      boundary), does the beam fade or taper gradually to transparent rather
+      than ending with a hard rectangular cutoff? Answer yes or no.
+    applies_to_scenes: [gameplay]
+    references: []
+    severity: advisory
+    notes: >
+      The ray_beam.gdshader applies a terminal fade via fade_start/fade_end
+      uniforms. A hard cutoff means the uniforms are overridden or the shader
+      is not applied.
+
+  # ── Target tile appearance ───────────────────────────────────────────────────
+
+  - id: R-TGT-01
+    question: >
+      Can you distinguish a standard target tile (must be lit to win) from a
+      must-not-light target tile (avoid target) without knowing their positions
+      in advance, using only the color of their unlit state in this screenshot?
+      Answer yes or no.
+    applies_to_scenes: [gameplay, gameplay_idle]
+    references: []
+    severity: warning
+    notes: >
+      Standard targets are reddish-brown (#7A3333); avoid-targets are teal
+      (#1A8C99). Color differentiation is the primary signal for players — if
+      they are indistinguishable, the mechanic is broken visually.
+
+  - id: R-TGT-02
+    question: >
+      When a standard target tile is lit (struck by the sight ray), does it
+      appear clearly brighter and more saturated than in its unlit state,
+      using a warm orange or amber color? Answer yes or no.
+    applies_to_scenes: [gameplay]
+    references: []
+    severity: warning
+    notes: >
+      Checks the lit-state shader output (color_lit = #FF991A). An unchanged
+      or subtle color shift indicates the lit uniform is not being set.
+
+  # ── Win state ────────────────────────────────────────────────────────────────
+
+  - id: R-WIN-01
+    question: >
+      Is there any bright green color visible in this screenshot? Answer yes
+      or no.
+    applies_to_scenes: [gameplay, gameplay_idle, main_menu, level_select, pause_menu]
+    references: []
+    severity: warning
+    notes: >
+      Win state green (#38FF73) must be absent during normal gameplay. Its
+      presence before a win event is a color-bleed defect.
+
+  - id: R-WIN-02
+    question: >
+      Do the target tiles display a pulsing or animated ring effect that
+      suggests celebration or victory? Answer yes or no.
+    applies_to_scenes: [gameplay_win, level_complete]
+    references: []
+    severity: advisory
+    notes: >
+      The win_pulse shader animation produces an expanding concentric ring.
+      This checks that the win state is visually distinct from idle.
+
+  # ── Shape language ────────────────────────────────────────────────────────────
+
+  - id: R-SHAPE-01
+    question: >
+      Are all game pieces (observer circles, mirror lines, target diamonds)
+      rendered with smooth anti-aliased edges rather than jagged or pixelated
+      edges? Answer yes or no.
+    applies_to_scenes: [gameplay, gameplay_idle]
+    references: []
+    severity: advisory
+    notes: >
+      All rendering is shader/vector-based in Godot 4. Jagged edges indicate
+      anti-aliasing is disabled or a fallback non-shader path is used.
+
+  - id: R-SHAPE-02
+    question: >
+      Does the observer piece (the piece that emits the sight ray) clearly
+      have a directional pointer or indicator showing which direction the ray
+      will travel? Answer yes or no.
+    applies_to_scenes: [gameplay, gameplay_idle]
+    references: []
+    severity: warning
+    notes: >
+      The observer is drawn as a circle with a line+dot pointer. The
+      direction must be readable — it is the primary orientation cue.
+
+  # ── Layout ────────────────────────────────────────────────────────────────────
+
+  - id: R-LAYOUT-01
+    question: >
+      Is there a clearly visible area outside the puzzle grid showing the
+      available pieces the player can place (piece inventory / hand display),
+      separate from the grid itself? Answer yes or no.
+    applies_to_scenes: [gameplay, gameplay_idle]
+    references: []
+    severity: advisory
+    notes: >
+      Checks that the piece inventory is visible and not overlapping the grid.
+      The verification pipeline should supply a gameplay screenshot with unplaced
+      pieces in the hand.
+
+  - id: R-LAYOUT-02
+    question: >
+      Is the puzzle grid clearly the most visually dominant element on the
+      screen, with any UI chrome (labels, buttons, counters) appearing smaller
+      and lower-contrast than the grid content? Answer yes or no.
+    applies_to_scenes: [gameplay, gameplay_idle]
+    references: []
+    severity: advisory
+    notes: >
+      Checks visual hierarchy — grid must dominate, UI must be recessive.
+      Relates to Pillar 4 (Show Don't Tell) and Submission aesthetic.
+
+  # ── Overall aesthetic ─────────────────────────────────────────────────────────
+
+  - id: R-OVERALL-01
+    question: >
+      Does this screenshot convey a calm, focused, and minimalist aesthetic —
+      dark background with precise, glowing elements — rather than a busy,
+      colorful, or heavily decorated style? Answer yes or no.
+    applies_to_scenes: [gameplay, gameplay_idle, main_menu]
+    references: []
+    severity: advisory
+    notes: >
+      Holistic aesthetic check. Relates to the Submission MDA aesthetic and
+      the "Dark Canvas / Glowing Logic" visual identity. Advisory only.
+
+  - id: R-OVERALL-02
+    question: >
+      Are all game elements rendered with clean geometric shapes (circles,
+      lines, diamonds) with no textures, gradients on flat surfaces, or
+      decorative embellishments beyond functional glow effects? Answer yes or no.
+    applies_to_scenes: [gameplay, gameplay_idle]
+    references: []
+    severity: advisory
+    notes: >
+      Checks that the minimalist shape language is maintained. Decorative
+      additions would violate the art bible's Shape Language rules.
