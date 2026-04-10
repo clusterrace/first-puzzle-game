@@ -93,6 +93,24 @@ func _init() -> void:
 	suite("check_win() — one target unlit = no win")
 	test_check_win_partial()
 
+	suite("propagate_ray() — E10: ray lights avoid target and continues")
+	test_ray_lights_avoid_target()
+
+	suite("check_win() — E10: avoid target lit blocks win")
+	test_check_win_avoid_target_lit_blocks()
+
+	suite("check_win() — E10: avoid target unlit, regular lit = win")
+	test_check_win_avoid_target_unlit_passes()
+
+	suite("check_win() — E10: only avoid targets, no regular = no win")
+	test_check_win_only_avoid_targets()
+
+	suite("recalculate() — E10: avoid target in ray path blocks win")
+	test_recalculate_avoid_target_blocks_win()
+
+	suite("recalculate() — E10: avoid target not in ray path, regular lit = win")
+	test_recalculate_avoid_target_not_hit_win()
+
 	_print_summary()
 	quit(1 if _fail_count > 0 else 0)
 
@@ -393,6 +411,82 @@ func test_check_win_partial() -> void:
 	expect_false(RayPropagation.check_win(g), "no win when one target is unlit")
 
 
+# ── TARGET_AVOID (E10) tests ──────────────────────────────────────────────────
+
+func test_ray_lights_avoid_target() -> void:
+	# E10: ray travels EAST, hits TARGET_AVOID at (0,2), continues to wall at (0,4).
+	# The avoid target must be marked lit and the ray must pass through it.
+	var g := MockGrid.new(1, 5)
+	g.set_piece(0, 0, GridEnums.PieceType.OBSERVER, GridEnums.Direction.EAST)
+	g.set_tile(0, 2, GridEnums.TileType.TARGET_AVOID)
+	g.set_tile(0, 4, GridEnums.TileType.WALL)
+
+	var path: Array = RayPropagation.propagate_ray(g, Vector2i(0, 0), GridEnums.Direction.EAST)
+
+	expect_eq(path.size(), 4, "E10: ray continues past avoid target, stops at wall")
+	expect_true(g.is_target_lit(Vector2i(0, 2)), "E10: avoid target (0,2) is lit by ray")
+	expect_true(path.has(Vector2i(0, 4)),         "E10: wall (0,4) is terminal tile")
+
+
+func test_check_win_avoid_target_lit_blocks() -> void:
+	# Regular target lit + avoid target also lit → no win.
+	var g := MockGrid.new(3, 3)
+	g.set_tile(0, 1, GridEnums.TileType.TARGET)
+	g.set_tile(2, 1, GridEnums.TileType.TARGET_AVOID)
+	g.set_target_lit(Vector2i(0, 1), true)   # regular — lit (good)
+	g.set_target_lit(Vector2i(2, 1), true)   # avoid   — lit (bad)
+	expect_false(RayPropagation.check_win(g), "E10: avoid target lit blocks win")
+
+
+func test_check_win_avoid_target_unlit_passes() -> void:
+	# Regular target lit + avoid target unlit → win.
+	var g := MockGrid.new(3, 3)
+	g.set_tile(0, 1, GridEnums.TileType.TARGET)
+	g.set_tile(2, 1, GridEnums.TileType.TARGET_AVOID)
+	g.set_target_lit(Vector2i(0, 1), true)   # regular — lit (good)
+	# avoid target stays unlit (good)
+	expect_true(RayPropagation.check_win(g), "E10: avoid target unlit + regular lit = win")
+
+
+func test_check_win_only_avoid_targets() -> void:
+	# Grid with only avoid targets (no regular targets) — never a win.
+	var g := MockGrid.new(3, 3)
+	g.set_tile(1, 1, GridEnums.TileType.TARGET_AVOID)
+	# avoid target unlit
+	expect_false(RayPropagation.check_win(g), "E10: only avoid targets = no win")
+
+
+func test_recalculate_avoid_target_blocks_win() -> void:
+	# OBS at (0,0) EAST. Regular TARGET at (0,2). AVOID_TARGET at (0,4). No wall.
+	# Ray hits both → avoid target lit → win = false even though regular target is lit.
+	var g := MockGrid.new(1, 6)
+	g.set_piece(0, 0, GridEnums.PieceType.OBSERVER, GridEnums.Direction.EAST)
+	g.set_tile(0, 2, GridEnums.TileType.TARGET)
+	g.set_tile(0, 4, GridEnums.TileType.TARGET_AVOID)
+
+	var result: Dictionary = RayPropagation.recalculate(g)
+
+	expect_true(g.is_target_lit(Vector2i(0, 2)),  "regular target (0,2) is lit")
+	expect_true(g.is_target_lit(Vector2i(0, 4)),  "avoid target (0,4) is lit (bad)")
+	expect_false(result["win"], "E10: win=false when avoid target is hit")
+
+
+func test_recalculate_avoid_target_not_hit_win() -> void:
+	# OBS at (0,0) EAST. WALL at (0,3). Regular TARGET at (0,2). AVOID_TARGET at (0,5).
+	# Ray is stopped by wall before reaching avoid target.
+	var g := MockGrid.new(1, 6)
+	g.set_piece(0, 0, GridEnums.PieceType.OBSERVER, GridEnums.Direction.EAST)
+	g.set_tile(0, 2, GridEnums.TileType.TARGET)
+	g.set_tile(0, 3, GridEnums.TileType.WALL)
+	g.set_tile(0, 5, GridEnums.TileType.TARGET_AVOID)
+
+	var result: Dictionary = RayPropagation.recalculate(g)
+
+	expect_true(g.is_target_lit(Vector2i(0, 2)),   "regular target (0,2) is lit")
+	expect_false(g.is_target_lit(Vector2i(0, 5)),  "avoid target (0,5) remains unlit")
+	expect_true(result["win"], "E10: win=true when avoid target is not hit")
+
+
 # ── Assertion helpers ─────────────────────────────────────────────────────────
 
 func suite(name: String) -> void:
@@ -480,11 +574,12 @@ class MockGrid:
 			_piece_dir.append(dir_row)
 
 	## Set base tile type for cell (row, col).
-	## Automatically registers TARGET cells in the lit-state dict.
+	## Automatically registers TARGET and TARGET_AVOID cells in the lit-state dict.
 	func set_tile(row: int, col: int, tile_type: int) -> void:
 		_tile_grid[row][col] = tile_type
 		var pos := Vector2i(row, col)
-		if tile_type == GridEnums.TileType.TARGET:
+		if tile_type == GridEnums.TileType.TARGET \
+				or tile_type == GridEnums.TileType.TARGET_AVOID:
 			_target_lit[pos] = false
 		elif _target_lit.has(pos):
 			_target_lit.erase(pos)

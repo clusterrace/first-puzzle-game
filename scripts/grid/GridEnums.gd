@@ -6,11 +6,14 @@ class_name GridEnums
 ## Base classification of a grid cell — fixed at level-authoring time and never
 ## changed at runtime. Determines what can occupy the cell and how rays interact.
 enum TileType {
-	EMPTY  = 0,  ## Passable open cell; not placeable, does not block rays.
-	WALL   = 1,  ## Impassable; terminates sight rays. Cannot be placed on.
-	SLOT   = 2,  ## Player-placeable slot; may hold a fixed or player piece.
-	TARGET = 3,  ## Must be hit by a sight ray to satisfy the win condition.
-	             ## Rays pass through; cannot be placed on.
+	EMPTY         = 0,  ## Passable open cell; not placeable, does not block rays.
+	WALL          = 1,  ## Impassable; terminates sight rays. Cannot be placed on.
+	SLOT          = 2,  ## Player-placeable slot; may hold a fixed or player piece.
+	TARGET        = 3,  ## Must be hit by a sight ray to satisfy the win condition.
+	                    ## Rays pass through; cannot be placed on.
+	TARGET_AVOID  = 4,  ## Must NOT be hit by a sight ray (E10). Rays that hit this
+	                    ## tile mark it lit — which blocks the win condition. Rays
+	                    ## pass through; cannot be placed on. Level JSON value: 4.
 }
 
 

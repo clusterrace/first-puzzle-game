@@ -29,6 +29,11 @@ var _cell_size : int   = 80
 # Map from grid cell (Vector2i row,col) → { rect: ColorRect, mat: ShaderMaterial }
 var _targets : Dictionary = {}
 
+# ── Avoid-target colors (TARGET_AVOID — E10) ─────────────────────────────────
+# Unlit = teal (safe), Lit = red (ray hit — win blocked).
+const _AVOID_COLOR_UNLIT := Color(0.10, 0.55, 0.60, 1.0)  # teal diamond
+const _AVOID_COLOR_LIT   := Color(0.95, 0.15, 0.15, 1.0)  # danger red
+
 
 # ── Lifecycle ─────────────────────────────────────────────────────────────────
 
@@ -41,12 +46,20 @@ func setup(pad_x: float, pad_y: float, cell_size: int) -> void:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
-## Rebuild target visuals from a list of grid cells.
+## Rebuild regular target visuals from a list of grid cells.
 ## target_cells: Array[Vector2i] where .x = row, .y = col  (matches Game.gd convention)
+## Call set_avoid_targets() separately for TARGET_AVOID cells.
 func set_targets(target_cells: Array) -> void:
 	clear()
 	for cell: Vector2i in target_cells:
 		_create_target_node(cell)
+
+
+## Register TARGET_AVOID cells (E10) with a distinct teal/red color scheme.
+## Must be called after set_targets() (which calls clear() internally).
+func set_avoid_targets(avoid_cells: Array) -> void:
+	for cell: Vector2i in avoid_cells:
+		_create_avoid_target_node(cell)
 
 
 ## Update the lit state of one target.  Safe to call with non-target cells.
@@ -92,6 +105,31 @@ func _create_target_node(cell: Vector2i) -> void:
 	rect.color          = Color.WHITE  # shader drives final color; host color unused
 	rect.material       = mat
 	rect.mouse_filter   = Control.MOUSE_FILTER_IGNORE  # don't intercept board clicks
+	add_child(rect)
+
+	_targets[cell] = {"rect": rect, "mat": mat}
+
+
+## Create a TARGET_AVOID node (E10). Same shader, different color uniforms:
+##   unlit = teal (safe / must-stay-unlit), lit = danger red (ray struck it).
+func _create_avoid_target_node(cell: Vector2i) -> void:
+	var r   := cell.x
+	var c   := cell.y
+	var pos := Vector2(_pad_x + c * _cell_size, _pad_y + r * _cell_size)
+
+	var mat := ShaderMaterial.new()
+	mat.shader = load(_SHADER_PATH)
+	mat.set_shader_parameter("lit",           0.0)
+	mat.set_shader_parameter("win_pulse",     0.0)
+	mat.set_shader_parameter("color_unlit",   _AVOID_COLOR_UNLIT)
+	mat.set_shader_parameter("color_lit",     _AVOID_COLOR_LIT)
+
+	var rect := ColorRect.new()
+	rect.position     = pos
+	rect.size         = Vector2(_cell_size, _cell_size)
+	rect.color        = Color.WHITE
+	rect.material     = mat
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(rect)
 
 	_targets[cell] = {"rect": rect, "mat": mat}

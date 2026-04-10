@@ -30,7 +30,8 @@
 #       Includes both fixed and player-placed observers.
 #
 #   get_all_targets() -> Array
-#       Returns Array of Vector2i(row, col) positions of every TARGET tile.
+#       Returns Array of Vector2i(row, col) positions of every TARGET and
+#       TARGET_AVOID tile. Use get_tile_type() to distinguish the two kinds.
 #
 #   set_target_lit(pos: Vector2i, lit: bool) -> void
 #       Marks the target at pos as lit or unlit. Must be idempotent.
@@ -109,9 +110,11 @@ static func propagate_ray(
 			dir = reflect(dir, piece_type)
 			# Do NOT break — ray continues in the reflected direction.
 
-		elif tile_type == GridEnums.TileType.TARGET:
+		elif tile_type == GridEnums.TileType.TARGET \
+				or tile_type == GridEnums.TileType.TARGET_AVOID:
 			grid.set_target_lit(current, true)
-			# Do NOT break — ray passes through target tiles (E1).
+			# Do NOT break — ray passes through all target tiles (E1, E10).
+			# TARGET_AVOID being lit blocks the win condition (checked in check_win).
 
 		# EMPTY, SLOT with NONE piece, SLOT with OBSERVER piece: pass through (E9).
 
@@ -122,17 +125,28 @@ static func propagate_ray(
 
 # ── Section 4.3 — Win Condition Check ────────────────────────────────────────
 
-## Returns true when every target on the grid is simultaneously lit.
-## Returns false immediately when any target is unlit, or when no targets exist.
-## A grid with no targets cannot be won (returns false per spec rule 3.6).
+## Returns true when the win condition is satisfied:
+##   - At least one TARGET (regular) tile exists.
+##   - Every TARGET tile is lit.
+##   - Every TARGET_AVOID tile is unlit (E10).
+##
+## Returns false when no regular targets exist, any regular target is unlit,
+## or any avoid target has been lit.
 static func check_win(grid: Object) -> bool:
 	var targets: Array = grid.get_all_targets()
 	if targets.is_empty():
 		return false
+	var has_regular: bool = false
 	for pos: Vector2i in targets:
-		if not grid.is_target_lit(pos):
-			return false
-	return true
+		var tile_type: int = grid.get_tile_type(pos)
+		if tile_type == GridEnums.TileType.TARGET:
+			has_regular = true
+			if not grid.is_target_lit(pos):
+				return false  # Regular target not yet lit.
+		elif tile_type == GridEnums.TileType.TARGET_AVOID:
+			if grid.is_target_lit(pos):
+				return false  # Avoid target was hit — win blocked (E10).
+	return has_regular
 
 
 # ── Section 4.4 — Full State Recalculation ───────────────────────────────────

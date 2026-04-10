@@ -141,12 +141,14 @@ func is_placeable(pos: Vector2i) -> bool:
 		and cell.piece_type == GridEnums.PieceType.NONE)
 
 
-## Returns positions (Vector2i(row, col)) of every TARGET tile in the grid.
+## Returns positions (Vector2i(row, col)) of every TARGET and TARGET_AVOID tile
+## in the grid. Use get_tile_type() on each result to distinguish the two kinds.
 func get_all_targets() -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	for r: int in range(rows):
 		for c: int in range(cols):
-			if _get_cell(r, c).tile_type == GridEnums.TileType.TARGET:
+			var t: GridEnums.TileType = _get_cell(r, c).tile_type
+			if t == GridEnums.TileType.TARGET or t == GridEnums.TileType.TARGET_AVOID:
 				result.append(Vector2i(r, c))
 	return result
 
@@ -210,7 +212,7 @@ func rotate_piece_cw(pos: Vector2i) -> bool:
 	return true
 
 
-## Updates the lit state of a TARGET tile at [param pos].
+## Updates the lit state of a TARGET or TARGET_AVOID tile at [param pos].
 ## Called by the ray-tracing system (S2) after recomputing rays.
 ## Does NOT emit state_changed (to avoid re-entrant signal loops).
 ## Satisfies the RayPropagation grid interface (set_target_lit(pos: Vector2i, lit: bool)).
@@ -218,17 +220,19 @@ func set_target_lit(pos: Vector2i, lit: bool) -> void:
 	if not is_in_bounds(pos):
 		return
 	var cell: Cell = _get_cell(pos.x, pos.y)
-	if cell.tile_type != GridEnums.TileType.TARGET:
+	if cell.tile_type != GridEnums.TileType.TARGET \
+			and cell.tile_type != GridEnums.TileType.TARGET_AVOID:
 		return
 	cell.is_lit = lit
 
 
-## Clears the lit state on all TARGET tiles. Call before recomputing rays.
+## Clears the lit state on all TARGET and TARGET_AVOID tiles. Call before recomputing rays.
 func clear_all_lit() -> void:
 	for r: int in range(rows):
 		for c: int in range(cols):
 			var cell: Cell = _get_cell(r, c)
-			if cell.tile_type == GridEnums.TileType.TARGET:
+			if cell.tile_type == GridEnums.TileType.TARGET \
+					or cell.tile_type == GridEnums.TileType.TARGET_AVOID:
 				cell.is_lit = false
 
 

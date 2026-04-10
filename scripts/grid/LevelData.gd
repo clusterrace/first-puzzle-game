@@ -20,9 +20,10 @@ class_name LevelData
 ##   "player_inventory": [1, 2]
 ## }
 ##
-## TileType values:  0=EMPTY  1=WALL  2=SLOT  3=TARGET
+## TileType values:  0=EMPTY  1=WALL  2=SLOT  3=TARGET  4=TARGET_AVOID (E10)
 ## PieceType values: 0=NONE   1=OBSERVER  2=MIRROR_FWDSLASH  3=MIRROR_BKSLASH
 ## Direction values: 0=NORTH  1=EAST  2=SOUTH  3=WEST
+## TARGET_AVOID (4): must-not-light cell — ray hits mark it lit, blocking win.
 
 
 const SUPPORTED_VERSION: int = 1
