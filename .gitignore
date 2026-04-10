@@ -2,3 +2,6 @@
 .godot/
 *.translation
 *.uid
+
+# HTML5 export output
+build/

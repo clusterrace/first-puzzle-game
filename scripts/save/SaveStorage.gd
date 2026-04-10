@@ -2,35 +2,47 @@ class_name SaveStorage
 ## Low-level platform-aware read/write backend for save data.
 ##
 ## Desktop: FileAccess writes JSON to user:// directory (OS filesystem).
-## Web:     FileAccess writes to user:// (Emscripten MEMFS backed by IndexedDB)
-##          then triggers an explicit IDBFS sync so data survives page reloads.
+## Web:     JavaScriptBridge writes JSON directly to localStorage.
+##          Key: WEB_STORAGE_KEY. Safe for typical save data sizes (<5 KB).
 ##
-## Both paths use the same FileAccess API; the difference is the post-write
-## JavaScriptBridge.eval call required on web to flush MEMFS → IndexedDB.
-## Swap or extend this class in Sprint 2 if the web backend needs changes.
+## Platform detection uses OS.has_feature("web") so desktop editor runs always
+## use the file backend even when targeting web export.
 
 const SAVE_PATH: String = "user://save.json"
+const WEB_STORAGE_KEY: String = "sight_lines_save"
 
 
-## Write [param data] as pretty-printed JSON to the save file.
+## Write [param data] as JSON to platform storage.
 ## Returns true on success, false on any write error.
 static func write(data: Dictionary) -> bool:
+	if OS.has_feature("web"):
+		return _write_web(data)
+	return _write_desktop(data)
+
+
+## Read and parse saved data from platform storage.
+## Returns an empty Dictionary on missing save or parse error; the caller
+## must treat an empty result as a fresh save (no error pop-up required).
+static func read() -> Dictionary:
+	if OS.has_feature("web"):
+		return _read_web()
+	return _read_desktop()
+
+
+# ── Desktop ───────────────────────────────────────────────────────────────────
+
+static func _write_desktop(data: Dictionary) -> bool:
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file == null:
 		push_error("SaveStorage: cannot open '%s' for writing (error %d)" % [
 				SAVE_PATH, FileAccess.get_open_error()])
 		return false
-
 	file.store_string(JSON.stringify(data, "\t"))
 	file.close()
-	_sync_web()
 	return true
 
 
-## Read and parse the save file.
-## Returns an empty Dictionary on missing file or parse error; the caller
-## must treat an empty result as a fresh save (no error pop-up required).
-static func read() -> Dictionary:
+static func _read_desktop() -> Dictionary:
 	if not FileAccess.file_exists(SAVE_PATH):
 		return {}
 
@@ -51,10 +63,33 @@ static func read() -> Dictionary:
 	return parsed as Dictionary
 
 
-## Flush Emscripten's in-memory FS to IndexedDB on web builds.
-## FS.syncfs(false, cb) means "push memory → disk".
-## No-op on desktop and all non-web platforms.
-static func _sync_web() -> void:
-	if not OS.has_feature("web"):
-		return
-	JavaScriptBridge.eval("FS.syncfs(false, function(err) {})")
+# ── Web (localStorage) ────────────────────────────────────────────────────────
+
+## Store [param data] to localStorage via JavaScriptBridge.
+## JSON.stringify on a GDScript String produces a properly-escaped JS string
+## literal, making the eval injection-safe for arbitrary save data content.
+static func _write_web(data: Dictionary) -> bool:
+	var json_str: String = JSON.stringify(data)
+	JavaScriptBridge.eval(
+			"localStorage.setItem('%s', %s)" % [WEB_STORAGE_KEY, JSON.stringify(json_str)])
+	return true
+
+
+## Read saved data from localStorage via JavaScriptBridge.
+## localStorage.getItem returns null (JS) when the key is absent, which
+## JavaScriptBridge maps to GDScript null.
+static func _read_web() -> Dictionary:
+	var raw: Variant = JavaScriptBridge.eval(
+			"localStorage.getItem('%s')" % WEB_STORAGE_KEY)
+	if raw == null:
+		return {}
+	var json_str: String = str(raw)
+	if json_str.is_empty() or json_str == "null":
+		return {}
+
+	var parsed: Variant = JSON.parse_string(json_str)
+	if not parsed is Dictionary:
+		push_error("SaveStorage: localStorage data is not valid JSON — treating as fresh start")
+		return {}
+
+	return parsed as Dictionary
