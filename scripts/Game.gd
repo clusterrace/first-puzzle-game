@@ -32,13 +32,14 @@ var PAD_Y: float = 50.0
 # ── Internal cell-type constants (Game.gd rendering layer only) ──────────────
 # These are NOT GridEnums values. They are used internally for the grid array
 # and drive _draw() and _trace_ray(). Convert from LevelData via helpers below.
-const EMPTY = 0
-const WALL  = 1
-const OBS   = 2   # observer piece — emits a sight ray
-const MIR_F = 3   # / mirror (MIRROR_FWDSLASH)
-const MIR_B = 4   # \ mirror (MIRROR_BKSLASH)
-const TGT   = 5   # target tile
-const SLOT  = 6   # empty placeable slot
+const EMPTY      = 0
+const WALL       = 1
+const OBS        = 2   # observer piece — emits a sight ray
+const MIR_F      = 3   # / mirror (MIRROR_FWDSLASH)
+const MIR_B      = 4   # \ mirror (MIRROR_BKSLASH)
+const TGT        = 5   # target tile — must be lit to win
+const SLOT       = 6   # empty placeable slot
+const AVOID_TGT  = 7   # must-NOT-light target (E10) — win blocked when lit
 
 # ── Direction constants (Game.gd rendering layer only) ───────────────────────
 # RT=right, DN=down, LT=left, UP=up.
@@ -86,12 +87,17 @@ var _initial_hand:     Array      = []
 var _ray_renderer:    Node2D
 var _target_renderer: Node2D
 
+# ── Pause menu (KAMA-31) ──────────────────────────────────────────────────────
+var _pause_canvas:  CanvasLayer
+var _pause_overlay: Node2D
+
 
 # ── Lifecycle ─────────────────────────────────────────────────────────────────
 
 func _ready() -> void:
 	font = ThemeDB.fallback_font
 	_setup_renderers()
+	_setup_pause_menu()
 	load_level(LevelManager.current_index)
 
 
@@ -102,6 +108,22 @@ func _setup_renderers() -> void:
 
 	_ray_renderer = load("res://scripts/RayRenderer.gd").new()
 	add_child(_ray_renderer)
+
+
+func _setup_pause_menu() -> void:
+	_pause_canvas = CanvasLayer.new()
+	_pause_canvas.layer = 64
+	_pause_canvas.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
+	add_child(_pause_canvas)
+
+	_pause_overlay = load("res://scripts/PauseMenuOverlay.gd").new()
+	_pause_overlay.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
+	_pause_overlay.visible = false
+	_pause_canvas.add_child(_pause_overlay)
+
+	_pause_overlay.resume_requested.connect(_on_pause_resume)
+	_pause_overlay.restart_requested.connect(_on_pause_restart)
+	_pause_overlay.quit_menu_requested.connect(_on_pause_quit_menu)
 
 
 # ── Level loading ─────────────────────────────────────────────────────────────
@@ -157,10 +179,13 @@ func load_level(idx: int) -> void:
 
 	# Collect target positions for S4 renderers.
 	var target_cells: Array[Vector2i] = []
+	var avoid_cells:  Array[Vector2i] = []
 	for r: int in range(ROWS):
 		for c: int in range(COLS):
 			if grid[r][c] == TGT:
 				target_cells.append(Vector2i(r, c))
+			elif grid[r][c] == AVOID_TGT:
+				avoid_cells.append(Vector2i(r, c))
 
 	if _ray_renderer:
 		_ray_renderer.clear()
@@ -168,6 +193,7 @@ func load_level(idx: int) -> void:
 		# Re-run setup so new PAD_X/PAD_Y take effect before building nodes.
 		_target_renderer.setup(PAD_X, PAD_Y, CELL)
 		_target_renderer.set_targets(target_cells)
+		_target_renderer.set_avoid_targets(avoid_cells)
 
 	level_loaded.emit(target_cells)
 	_update_rays()
@@ -176,13 +202,14 @@ func load_level(idx: int) -> void:
 
 # ── LevelData → Game.gd conversion helpers ───────────────────────────────────
 
-## TileType (KAMA-11): EMPTY=0, WALL=1, SLOT=2, TARGET=3
+## TileType (KAMA-11): EMPTY=0, WALL=1, SLOT=2, TARGET=3, TARGET_AVOID=4
 func _tile_to_game(tile: int) -> int:
 	match tile:
 		0: return EMPTY
 		1: return WALL
 		2: return SLOT
 		3: return TGT
+		4: return AVOID_TGT
 		_: return EMPTY
 
 
@@ -228,11 +255,11 @@ func _update_rays() -> void:
 	ray_segs = []
 	var previously_lit: Dictionary = lit.duplicate()
 
-	# Reset all target lit states.
+	# Reset all target lit states (both regular and avoid).
 	lit = {}
 	for r: int in range(ROWS):
 		for c: int in range(COLS):
-			if grid[r][c] == TGT:
+			if grid[r][c] == TGT or grid[r][c] == AVOID_TGT:
 				lit[Vector2i(r, c)] = false
 
 	# Trace a ray from every observer on the grid.
@@ -240,17 +267,28 @@ func _update_rays() -> void:
 		if in_bounds(cell.x, cell.y) and grid[cell.x][cell.y] == OBS:
 			_trace_ray(cell.x, cell.y, obs_dirs[cell])
 
-	# Detect newly lit targets for audio events.
+	# Detect newly lit regular targets for audio events (avoid targets excluded).
 	var newly_lit: Array[Vector2i] = []
 	for target_pos: Vector2i in lit.keys():
-		if lit[target_pos] and not previously_lit.get(target_pos, false):
+		if grid[target_pos.x][target_pos.y] == TGT \
+				and lit[target_pos] and not previously_lit.get(target_pos, false):
 			newly_lit.append(target_pos)
 
-	var all_lit: bool = lit.size() > 0
+	# Win condition: at least one regular target exists, all regular targets lit,
+	# and no avoid target has been hit (E10).
+	var has_regular: bool = false
+	var all_regular_lit: bool = true
+	var all_avoid_unlit: bool = true
 	for cell: Vector2i in lit.keys():
-		if not lit[cell]:
-			all_lit = false
-			break
+		var cell_type: int = grid[cell.x][cell.y]
+		if cell_type == TGT:
+			has_regular = true
+			if not lit[cell]:
+				all_regular_lit = false
+		elif cell_type == AVOID_TGT:
+			if lit[cell]:
+				all_avoid_unlit = false
+	var all_lit: bool = has_regular and all_regular_lit and all_avoid_unlit
 
 	if all_lit and not win:
 		AudioManager.evt_level_complete()
@@ -304,10 +342,11 @@ func _trace_ray(sr: int, sc: int, dir: int) -> void:
 		if t == WALL:
 			ray_segs.append({"from": prev, "to": prev.lerp(cur, 0.5)})
 			break
-		elif t == TGT:
+		elif t == TGT or t == AVOID_TGT:
 			ray_segs.append({"from": prev, "to": cur})
 			lit[Vector2i(nr, nc)] = true
-			# Ray passes THROUGH targets (spec §3.2 — required for Level 5).
+			# Ray passes THROUGH all target tiles (spec §3.2, E10).
+			# AVOID_TGT being lit blocks the win condition.
 			r = nr; c = nc; prev = cur
 		elif t == MIR_F or t == MIR_B:
 			ray_segs.append({"from": prev, "to": cur})
@@ -340,10 +379,10 @@ func _reflect(d: int, is_fwd: bool) -> int:
 # ── Input ─────────────────────────────────────────────────────────────────────
 
 func _input(event: InputEvent) -> void:
-	# ESC → level select at any time.
+	# ESC → open pause menu (KAMA-31).
 	if event is InputEventKey and event.pressed \
 			and event.keycode == KEY_ESCAPE:
-		get_tree().change_scene_to_file("res://scenes/LevelSelect.tscn")
+		_open_pause_menu()
 		return
 
 	# Z → undo last action.  R → reset to level-load state.
@@ -439,6 +478,30 @@ func _restore_snapshot(snap: Dictionary) -> void:
 	win      = false
 	_update_rays()
 	queue_redraw()
+
+
+# ── Pause menu handlers (KAMA-31) ─────────────────────────────────────────────
+
+func _open_pause_menu() -> void:
+	_pause_overlay.visible = true
+	get_tree().paused = true
+
+
+func _on_pause_resume() -> void:
+	get_tree().paused = false
+	_pause_overlay.visible = false
+
+
+func _on_pause_restart() -> void:
+	get_tree().paused = false
+	_pause_overlay.visible = false
+	load_level(level_idx)
+
+
+func _on_pause_quit_menu() -> void:
+	get_tree().paused = false
+	_pause_overlay.visible = false
+	SceneTransition.change_scene("res://scenes/MainMenu.tscn")
 
 
 # ── Drawing ───────────────────────────────────────────────────────────────────
@@ -575,7 +638,7 @@ func _draw_hud() -> void:
 	var hint_col := Color(0.38, 0.40, 0.50)
 	draw_string(font, Vector2(PAD_X, 549.0), "Z \u2014 undo   R \u2014 reset",
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 11, hint_col)
-	draw_string(font, Vector2(PAD_X, 562.0), "ESC \u2014 level select",
+	draw_string(font, Vector2(PAD_X, 562.0), "ESC \u2014 pause",
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 11, hint_col)
 
 
