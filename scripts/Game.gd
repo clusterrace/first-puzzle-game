@@ -91,6 +91,10 @@ var _target_renderer: Node2D
 var _pause_canvas:  CanvasLayer
 var _pause_overlay: Node2D
 
+# ── Level complete overlay (KAMA-32) ──────────────────────────────────────────
+var _complete_canvas:  CanvasLayer
+var _complete_overlay: Node2D
+
 
 # ── Lifecycle ─────────────────────────────────────────────────────────────────
 
@@ -98,6 +102,7 @@ func _ready() -> void:
 	font = ThemeDB.fallback_font
 	_setup_renderers()
 	_setup_pause_menu()
+	_setup_level_complete()
 	load_level(LevelManager.current_index)
 
 
@@ -124,6 +129,19 @@ func _setup_pause_menu() -> void:
 	_pause_overlay.resume_requested.connect(_on_pause_resume)
 	_pause_overlay.restart_requested.connect(_on_pause_restart)
 	_pause_overlay.quit_menu_requested.connect(_on_pause_quit_menu)
+
+
+func _setup_level_complete() -> void:
+	_complete_canvas = CanvasLayer.new()
+	_complete_canvas.layer = 32
+	add_child(_complete_canvas)
+
+	_complete_overlay = load("res://scripts/LevelCompleteOverlay.gd").new()
+	_complete_overlay.visible = false
+	_complete_canvas.add_child(_complete_overlay)
+
+	_complete_overlay.next_level_requested.connect(_on_level_complete_next)
+	_complete_overlay.back_to_menu_requested.connect(_on_level_complete_menu)
 
 
 # ── Level loading ─────────────────────────────────────────────────────────────
@@ -170,6 +188,10 @@ func load_level(idx: int) -> void:
 	ray_segs   = []
 	win        = false
 	hover_cell = Vector2i(-1, -1)
+
+	# Hide level-complete overlay if it was showing (e.g. after restart).
+	if _complete_overlay:
+		_complete_overlay.visible = false
 
 	# Snapshot initial state for Undo/Reset.
 	_undo_stack       = []
@@ -314,6 +336,7 @@ func _update_rays() -> void:
 		if _target_renderer:
 			_target_renderer.set_win_pulse(true)
 		win_achieved.emit()
+		_show_level_complete()
 
 	queue_redraw()
 
@@ -400,16 +423,8 @@ func _input(event: InputEvent) -> void:
 			})
 			return
 
-	if win:
-		if event is InputEventMouseButton and event.pressed:
-			if LevelManager.is_last_level(level_idx):
-				await AudioManager.evt_advance_level()
-				get_tree().change_scene_to_file("res://scenes/LevelSelect.tscn")
-			else:
-				var next: int = level_idx + 1
-				await AudioManager.evt_advance_level()
-				LevelManager.current_index = next
-				load_level(next)
+	# Block game input while the level-complete overlay is shown (KAMA-32).
+	if _complete_overlay and _complete_overlay.visible:
 		return
 
 	if event is InputEventMouseMotion:
@@ -504,6 +519,27 @@ func _on_pause_quit_menu() -> void:
 	SceneTransition.change_scene("res://scenes/MainMenu.tscn")
 
 
+# ── Level complete handlers (KAMA-32) ─────────────────────────────────────────
+
+func _show_level_complete() -> void:
+	_complete_overlay.is_final_level = LevelManager.is_last_level(level_idx)
+	_complete_overlay.visible = true
+
+
+func _on_level_complete_next() -> void:
+	_complete_overlay.visible = false
+	var next := level_idx + 1
+	await AudioManager.evt_advance_level()
+	LevelManager.current_index = next
+	load_level(next)
+
+
+func _on_level_complete_menu() -> void:
+	_complete_overlay.visible = false
+	await AudioManager.evt_advance_level()
+	SceneTransition.change_scene("res://scenes/LevelSelect.tscn")
+
+
 # ── Drawing ───────────────────────────────────────────────────────────────────
 
 func _draw() -> void:
@@ -546,10 +582,6 @@ func _draw() -> void:
 		)
 
 	_draw_hud()
-
-	if win:
-		_draw_win_overlay()
-
 
 func _draw_slot_border(rect: Rect2) -> void:
 	var steps := 5
@@ -650,20 +682,3 @@ func _grid_has_placed_mirror() -> bool:
 	return false
 
 
-func _draw_win_overlay() -> void:
-	draw_rect(Rect2(0, 0, 760, 580), Color(0, 0, 0, 0.52))
-
-	var cx := 380.0
-	var cy := 250.0
-	draw_rect(Rect2(cx - 170, cy - 60, 340, 140), Color(0.08, 0.11, 0.14, 0.95))
-
-	draw_string(font, Vector2(cx - 140, cy - 24), "All targets illuminated",
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 22, C_WIN)
-
-	var sub: String
-	if LevelManager.is_last_level(level_idx):
-		sub = "Click to return to level select"
-	else:
-		sub = "Click to continue"
-	draw_string(font, Vector2(cx - 140, cy + 18), sub,
-		HORIZONTAL_ALIGNMENT_LEFT, -1, 14, C_UI)
