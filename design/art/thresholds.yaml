@@ -1,18 +1,25 @@
 # thresholds.yaml — Numeric verification tolerances for Sight Lines art QA
-# Version: 1.0  KAMA-44
+# Version: 2.0  KAMA-66
+# Supersedes v1.0 (KAMA-44). Key corrections:
+#   - Resolution baseline corrected to 760×580 (was 1280×720)
+#   - PAD_Y minimum corrected to 40 px (was 50 px; code enforces maxf(..., 40.0))
+#   - Maximum grid dimensions updated for 760×580 viewport
+#   - avoid_target state contrast added
+#   - overlay/affordance alpha checks added
 # All values are Band 1 (numerical) or Band 2 (structural) — auto-testable.
 # Band 3/4 rules are in rubric.yaml. Do not add Band 3/4 items here.
 #
 # Coordinate and size conventions:
-#   - Resolution baseline: 1280 × 720 px
-#   - Cell size: 80 × 80 px (default; scalable but art direction is at this size)
-#   - Padding: PAD_X = 40 px, PAD_Y = 50 px from viewport top-left
+#   - Resolution baseline: 760 × 580 px  (project.godot viewport_width/height)
+#   - Cell size: 80 × 80 px (CELL constant in Game.gd)
+#   - PAD_X: (760 - COLS×80) / 2  — guaranteed ≥ 40 px on shipped levels
+#   - PAD_Y: max((580 - ROWS×80) / 2 - 20, 40)  — minimum enforced at 40 px
 
 _meta:
   game: Sight Lines
-  version: "1.0"
-  authored: KAMA-44
-  resolution_baseline_px: [1280, 720]
+  version: "2.0"
+  authored: KAMA-66
+  resolution_baseline_px: [760, 580]
   cell_size_px: 80
 
 # ── Band 1: Color / Numerical ─────────────────────────────────────────────────
@@ -56,6 +63,11 @@ color:
       b_hex: "#6BD6FF"
       minimum: 5
       reason: "Observer piece must not visually fuse with the ray beam"
+    overlay_card_vs_background:
+      a_hex: "#1A1F29"
+      b_hex: "#14171F"
+      minimum: 6
+      reason: "Overlay card must be distinct from gameplay background"
 
   hover_overlay_alpha:
     # Alpha values for affordance overlays, checked on the raw draw() output.
@@ -75,19 +87,33 @@ color:
       expected_alpha: 0.55
       tolerance: 0.05
       color_rgb: [1.0, 0.15, 0.15]
+    ghost_piece:
+      expected_alpha: 0.40
+      tolerance: 0.05
+      color_rgb: null   # alpha applied to the piece's own color
+    slot_dashed_border:
+      expected_alpha: 0.80
+      tolerance: 0.05
+      color_rgb: [0.28, 0.32, 0.40]
+    overlay_scrim:
+      expected_alpha: 0.72
+      tolerance: 0.05
+      color_rgb: [0.0, 0.0, 0.0]
+      applies_to_scenes: [pause_menu, level_complete]
 
 # ── Band 2: Structural / Layout ───────────────────────────────────────────────
 
 layout:
-  viewport_px: [1280, 720]
+  viewport_px: [760, 580]
 
   grid:
     # Grid must not clip the viewport on any shipped level (levels 1–12).
+    # PAD_X = (760 - COLS×80)/2; PAD_Y = max((580 - ROWS×80)/2 - 20, 40)
     minimum_pad_x_px: 40
-    minimum_pad_y_px: 50
+    minimum_pad_y_px: 40    # Code enforces maxf(..., 40.0) — not 50
     # No grid element may extend beyond these viewport margins.
-    maximum_grid_width_px: 1200   # 1280 - 2×40
-    maximum_grid_height_px: 620   # 720 - 2×50
+    maximum_grid_width_px: 680    # 760 - 2×40
+    maximum_grid_height_px: 500   # 580 - 2×40
 
   cell:
     size_px: 80
@@ -95,25 +121,24 @@ layout:
 
 elements:
   observer_circle:
-    # Observer icon: filled circle + directional pointer.
-    # Circle radius ≈ 26% of cell size = 20.8 px; check 18–24 px.
+    # Observer icon: filled circle (r = 0.26 × cell) + hollow inner (0.44×r) + pointer.
+    # Circle radius = 0.26 × 80 = 20.8 px; check 18–24 px.
     radius_min_px: 18
     radius_max_px: 24
-    # Pointer extends 1.6× radius from center → tip at ~33 px from center.
+    # Pointer tip: r × 1.6 = 20.8 × 1.6 ≈ 33 px from center.
     pointer_tip_min_px_from_center: 28
     pointer_tip_max_px_from_center: 40
 
   mirror_stroke:
-    # Mirror diagonal stroke: 16% cell margin → inset ~12.8 px per side.
-    # Stroke must span the diagonal of the inset region.
+    # Mirror diagonal stroke: 0.16 × cell margin = 12.8 px inset per side.
     margin_min_px: 10
     margin_max_px: 18
     stroke_weight_min_px: 3
+    stroke_weight_nominal_px: 4
 
   target_diamond:
-    # Target tile: L1 diamond shape, diamond_size ≈ 0.26 of half-cell.
-    # L1 radius in UV space = 0.26; in pixels ≈ 0.26 × 40 = 10.4 px from centre.
-    # Half-cell = 40 px, so diamond_size_uv × 40 = diamond pixel radius.
+    # Target tile: L1 diamond shape.
+    # diamond_size_uv = 0.26; in pixels = 0.26 × 40 (half-cell) ≈ 10.4 px from centre.
     diamond_size_uv: 0.26
     diamond_size_tolerance_uv: 0.04
     glow_ring_visible_when_lit: true
@@ -134,18 +159,17 @@ animation:
     post_duration_alpha_max: 0.02
 
   win_pulse:
-    # pulse_freq default = 1.80 Hz. Accept 1.5–2.1 Hz.
-    frequency_min_hz: 1.5
-    frequency_max_hz: 2.1
+    # Level-complete overlay: outer glow oscillates at ~2.4 rad/s; border at ~2.0 rad/s.
+    # Not a discrete frequency — check that the animation is visibly cycling.
+    _note: "Band 3 holistic check R-WIN-02 governs this; no numeric floor here."
 
   ray_update_latency:
     # After any piece placement / removal, ray visuals must update within 1 frame.
-    # At 60 fps this is ≤ 17 ms. This is aspirational and not auto-measured
-    # here — covered by Band 4 in art-bible.md.
+    # At 60 fps this is ≤ 17 ms. Aspirational — covered by Band 4 in art-bible.md.
     _note: "Band 4 — not auto-tested here"
 
 ui_overlap:
-  # UI elements (title, piece counter, controls) must not overlap the grid rect.
+  # UI elements (title, piece inventory, controls) must not overlap the grid rect.
   # Grid rect origin = (PAD_X, PAD_Y); size = (COLS × 80, ROWS × 80).
   ui_must_not_overlap_grid: true
 

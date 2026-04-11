@@ -1,5 +1,7 @@
 # Art Bible — Sight Lines
-> Version 1.0 — authored KAMA-44 (Art Director)
+> Version 2.0 — authored KAMA-66 (Art Director)
+> Supersedes v1.0 (KAMA-44). Key corrections: viewport resolution 760×580 (not
+> 1280×720), PAD_Y minimum 40 px (not 50 px), overlay palette entries added.
 > Pillars source: `design/gdd/game-pillars.md`
 
 ---
@@ -14,7 +16,7 @@ struck; mirrors redirect light. The visual metaphor is optical precision —
 lasers, lenses, and sensors arranged in darkness. Nothing decorates; everything
 communicates.
 
-This style is a direct expression of the Pillar 4 (Show, Don't Tell) and the
+This style is a direct expression of Pillar 4 (Show, Don't Tell) and the
 MDA Sensation aesthetic: the glow of a lit target and the trace of a ray are
 intrinsically satisfying because they are *meaningful* — they tell the player
 exactly what the logic is doing.
@@ -39,10 +41,12 @@ Automated pipelines must skip all `[band: 4_aspirational — human-only]` rules.
 ## 1. Color Palette
 
 All colors are authoritative as defined in `palette.json`. The source values
-are the float constants declared in `scripts/Game.gd` (C_BG, C_OBS, etc.) and
-the shader uniforms in `shaders/ray_beam.gdshader` and `shaders/target_tile.gdshader`.
+are the float constants declared in `scripts/Game.gd` (C_BG, C_OBS, etc.),
+shader uniforms in `shaders/ray_beam.gdshader` and `shaders/target_tile.gdshader`,
+`scripts/GridAffordanceRenderer.gd` (affordance overlays), and
+`scripts/LevelCompleteOverlay.gd` (overlay UI).
 
-### 1.1 Background
+### 1.1 Background and Structural Tiles
 
 | Role       | Hex       | Float (R, G, B)        | Use                              |
 |------------|-----------|------------------------|----------------------------------|
@@ -167,34 +171,66 @@ contrast ratio ≥ 4.5:1 (AA).
 `[band: 1_numerical — WCAG contrast ratio]`
 
 **Rule 1.5.C** — Win state color (`#38FF73`) is reserved exclusively for the
-win condition. It must not appear during normal gameplay.
+win condition and level-complete overlay. It must not appear during normal
+gameplay (pre-win).
 `[band: 3_holistic — VLM rubric item R-WIN-01]`
 
 **Rule 1.5.D** — The cool grey palette for UI text (`#9499B3`, `#B3B8D1`) keeps
 UI recessive — informational but never competing with gameplay elements.
 `[band: 4_aspirational — human-only]`
 
+### 1.6 Overlay and Affordance Colors
+
+These colors appear only in modal overlay contexts (level-complete, pause) or
+as interactive affordance feedback. They must not leak into normal gameplay
+renders; verification tools should sample these only in overlay-active scenes.
+
+| Role                    | Hex       | Float (R, G, B[, A])       | Use / Source                          |
+|-------------------------|-----------|----------------------------|---------------------------------------|
+| Scrim                   | `#000000` | (0.00, 0.00, 0.00, 0.72)   | Full-screen darkening overlay         |
+| Overlay card bg         | `#1A1F29` | (0.10, 0.12, 0.16, 0.97)   | Pause / level-complete card           |
+| Overlay card border     | `#40475C` | (0.25, 0.28, 0.36)         | Card border stroke                    |
+| Overlay button bg       | `#1F242E` | (0.12, 0.14, 0.18)         | Button resting state                  |
+| Overlay button hover    | `#2B323F` | (0.17, 0.20, 0.25)         | Button hover highlight                |
+| Slot dashed border      | `#475266` | (0.28, 0.32, 0.40, 0.80)   | Dashed border on placeable slot       |
+| Ghost piece alpha       | N/A       | alpha = 0.40               | Translucent piece preview at hover    |
+| Keyboard hint           | `#616680` | (0.38, 0.40, 0.50)         | Undo/Reset/Pause keyboard hint text   |
+
+**Rule 1.6.A** — The level-complete overlay card (`#1A1F29`) must be clearly
+distinct from the gameplay background (`#14171F`). ΔE ≥ 6.
+`[band: 1_numerical — ΔE contrast check]`
+
+**Rule 1.6.B** — The scrim must reduce perceived background luminance by ≥ 50 %
+when the overlay is active. A 72 % opacity black fill achieves this.
+`[band: 4_aspirational — human-only]`
+
+**Rule 1.6.C** — Ghost piece previews render at α = 0.40 (±0.05). The preview
+must be legible without obscuring the slot tile beneath.
+`[band: 1_numerical — alpha channel check ± 0.05]`
+
 ---
 
 ## 2. Shape Language
 
 **Rule 2.1** — The grid is a regular orthogonal grid. All tiles are square
-(80 × 80 px at default scale). No hexagonal, triangular, or irregular tiling.
+(80 × 80 px). No hexagonal, triangular, or irregular tiling.
 `[band: 2_structural — grid regularity check]`
 
-**Rule 2.2** — Observer pieces: rendered as a filled circle with a directional
-pointer. Circle radius ≈ 26 % of cell size (≈ 21 px at 80 px cell). The
-pointer extends to ≈ 160 % of circle radius from center.
+**Rule 2.2** — Observer pieces: rendered as a filled circle with a hollow
+center (inner circle α = BG color at 44 % of outer radius) and a directional
+pointer (line + dot). Circle radius ≈ 26 % of cell size (≈ 20.8 px at 80 px
+cell). The pointer tip extends to ≈ 160 % of the circle radius from center
+(≈ 33 px from center).
 `[band: 2_structural — element size check]`
 
 **Rule 2.3** — Mirror pieces: rendered as a diagonal stroke (/ or \) with
-16 % cell margin on all sides. Stroke weight ≥ 3 px. The line spans corner to
-corner of the inset region.
+16 % cell margin on all sides (≈ 12.8 px inset). Stroke weight = 4 px
+(minimum 3 px). The line spans corner to corner of the inset region.
 `[band: 2_structural — element size check]`
 
 **Rule 2.4** — Target tiles: rendered as a diamond (L1 / taxicab metric shape)
-with L1 radius ≈ 26 % of the cell half-width (≈ 21 px core radius at 80 px
-cell). A glow ring surrounds the core when lit.
+with L1 radius ≈ 26 % of the cell half-width (≈ 10.4 px from center in pixel
+space). A glow ring surrounds the core when lit.
 `[band: 2_structural — element size check]`
 
 **Rule 2.5** — All shapes are geometric and anti-aliased. No pixel-art jagged
@@ -209,17 +245,21 @@ embellishments beyond what is functionally required to communicate game state.
 
 ## 3. Layout and Composition
 
-**Rule 3.1** — The puzzle grid is centered on screen. Horizontal padding ≥ 40 px;
-vertical padding ≥ 50 px from the viewport top. On all shipped levels (1–12)
-the grid must not clip the viewport at 1280 × 720 resolution.
+**Rule 3.1** — The puzzle grid is centered on screen within the 760 × 580 px
+viewport. Horizontal padding is computed as `(760 − COLS × 80) / 2`, with a
+guaranteed minimum PAD_X of approximately 40 px (for the widest shipped grid).
+Vertical padding PAD_Y is computed as `max((580 − ROWS × 80) / 2 − 20, 40)`,
+enforcing a hard minimum of **40 px** from viewport top. On all shipped levels
+(1–12) the grid must not clip the viewport.
 `[band: 2_structural — layout position check]`
 
-**Rule 3.2** — UI elements (level title, piece counter, undo/reset controls)
-must not overlap the puzzle grid.
+**Rule 3.2** — UI elements (level title above grid, piece inventory/hand to
+the right of grid, keyboard hints and level counter below grid) must not
+overlap the puzzle grid rectangle.
 `[band: 2_structural — overlap check]`
 
 **Rule 3.3** — The piece inventory / hand display occupies a clear visual zone
-separate from the grid. It must be readable at a glance (not buried in the
+to the right of the grid. It must be readable at a glance (not buried in the
 grid area).
 `[band: 3_holistic — VLM rubric item R-LAYOUT-01]`
 
@@ -249,9 +289,10 @@ at α = 0.28. Color: `rgba(1.0, 1.0, 1.0, 0.28)`. Indicates clickability
 without obscuring the piece color.
 `[band: 1_numerical — alpha channel check ± 0.05]`
 
-**Rule 4.5** — Win pulse animation: a concentric ring breathing at 1.80 Hz
-(configurable via `pulse_freq` uniform). The ring is additive and must read as
-"celebration" — bright and energetic, not alarming.
+**Rule 4.5** — Win pulse animation on the level-complete overlay: an animated
+glow halo around the card oscillates at ≈ 2.4 rad/s (≈ 0.38 Hz) for the outer
+glow and ≈ 2.0 rad/s for the border pulse. The animation uses the win state
+color (`#38FF73`). The celebration must read as bright and energetic.
 `[band: 3_holistic — VLM rubric item R-WIN-02]`
 
 **Rule 4.6** — State transitions (ray recalculation) must update visually within
@@ -274,8 +315,11 @@ No features requiring the Forward+ renderer are permitted.
 `target_tile.gdshader`). No texture samples in the target shader.
 `[band: 4_aspirational — human-only]`
 
-**Rule 5.4** — The game must render correctly on a viewport of 1280 × 720 px.
-All art direction measurements in this document assume this resolution baseline.
+**Rule 5.4** — The game renders on a viewport of **760 × 580 px** (project
+setting `window/size/viewport_width=760`, `window/size/viewport_height=580`,
+stretch mode `canvas_items`). All art direction measurements in this document
+assume this resolution baseline. Do not confuse with any external window size
+the stretch mode may produce on the host display.
 `[band: 2_structural — resolution baseline]`
 
 ---

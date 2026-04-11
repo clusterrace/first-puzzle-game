@@ -1,8 +1,9 @@
 {
-  "_comment": "Machine-readable palette for Sight Lines — sourced from Game.gd constants and shader uniforms. KAMA-44.",
-  "_version": "1.0",
+  "_comment": "Machine-readable palette for Sight Lines — sourced from Game.gd constants, shader uniforms, GridAffordanceRenderer.gd, and LevelCompleteOverlay.gd. KAMA-66 v2.0.",
+  "_version": "2.0",
   "_delta_e_metric": "CIEDE2000",
   "_delta_e_note": "delta_e_tolerance is the maximum allowed CIEDE2000 difference between any sampled pixel and the reference hex when verifying a production screenshot.",
+  "_changelog": "v2.0 (KAMA-66): Added overlay/affordance palette group (scrim, card, border, button, slot-border, ghost-alpha, keyboard-hint). No gameplay-color changes.",
 
   "palette": [
     {
@@ -110,7 +111,7 @@
       "hex":        "#B3B8D1",
       "float_rgb":  [0.70, 0.72, 0.82],
       "role":       "Level title and prominent labels. Slightly brighter than ui_text for hierarchy.",
-      "source":     "Game.gd C_TITLE",
+      "source":     "Game.gd C_TITLE / LevelCompleteOverlay.gd C_TITLE",
       "delta_e_tolerance": 5,
       "wcag_note":  "Must achieve ≥ 4.5:1 contrast ratio against background #14171F (WCAG AA)."
     },
@@ -118,10 +119,82 @@
       "name":       "win_state",
       "hex":        "#38FF73",
       "float_rgb":  [0.22, 1.00, 0.45],
-      "role":       "Win condition achieved. Bright green — reserved exclusively for win events. Must not appear during normal gameplay.",
-      "source":     "Game.gd C_WIN",
+      "role":       "Win condition achieved. Bright green — reserved for win events and level-complete overlay. Must not appear during normal pre-win gameplay.",
+      "source":     "Game.gd C_WIN / LevelCompleteOverlay.gd C_WIN",
       "delta_e_tolerance": 8,
       "wcag_note":  null
+    },
+    {
+      "name":       "overlay_scrim",
+      "hex":        "#000000",
+      "float_rgb":  [0.00, 0.00, 0.00],
+      "float_rgba": [0.00, 0.00, 0.00, 0.72],
+      "role":       "Full-screen darkening scrim behind modal overlays (pause, level-complete). Semi-transparent black at 72 % opacity.",
+      "source":     "LevelCompleteOverlay.gd C_SCRIM / PauseMenuOverlay.gd",
+      "delta_e_tolerance": null,
+      "wcag_note":  "Alpha-only check (0.72 ± 0.05). Solid color not independently sampled.",
+      "alpha_nominal": 0.72,
+      "alpha_tolerance": 0.05
+    },
+    {
+      "name":       "overlay_card_bg",
+      "hex":        "#1A1F29",
+      "float_rgb":  [0.10, 0.12, 0.16],
+      "float_rgba": [0.10, 0.12, 0.16, 0.97],
+      "role":       "Background fill for modal overlay cards (pause menu, level-complete). Near-opaque dark blue-grey.",
+      "source":     "LevelCompleteOverlay.gd C_CARD",
+      "delta_e_tolerance": 6,
+      "wcag_note":  null,
+      "alpha_nominal": 0.97,
+      "alpha_tolerance": 0.03
+    },
+    {
+      "name":       "overlay_card_border",
+      "hex":        "#40475C",
+      "float_rgb":  [0.25, 0.28, 0.36],
+      "role":       "Border stroke on overlay cards. Mid-tone cool grey — separates card from scrim.",
+      "source":     "LevelCompleteOverlay.gd C_BORDER",
+      "delta_e_tolerance": 6,
+      "wcag_note":  null
+    },
+    {
+      "name":       "overlay_button_bg",
+      "hex":        "#1F242E",
+      "float_rgb":  [0.12, 0.14, 0.18],
+      "role":       "Resting button fill inside overlay cards.",
+      "source":     "LevelCompleteOverlay.gd C_BTN",
+      "delta_e_tolerance": 6,
+      "wcag_note":  null
+    },
+    {
+      "name":       "overlay_button_hover",
+      "hex":        "#2B323F",
+      "float_rgb":  [0.17, 0.20, 0.25],
+      "role":       "Button fill on hover inside overlay cards.",
+      "source":     "LevelCompleteOverlay.gd C_HOVER",
+      "delta_e_tolerance": 6,
+      "wcag_note":  null
+    },
+    {
+      "name":       "slot_dashed_border",
+      "hex":        "#475266",
+      "float_rgb":  [0.28, 0.32, 0.40],
+      "float_rgba": [0.28, 0.32, 0.40, 0.80],
+      "role":       "Dashed border drawn on placeable slot tiles to hint interactability. Semi-transparent cool grey.",
+      "source":     "Game.gd _draw_slot_border()",
+      "delta_e_tolerance": null,
+      "wcag_note":  "Alpha-only check (0.80 ± 0.05). Rendered as a dashed stroke over the dark_slot fill.",
+      "alpha_nominal": 0.80,
+      "alpha_tolerance": 0.05
+    },
+    {
+      "name":       "keyboard_hint",
+      "hex":        "#616680",
+      "float_rgb":  [0.38, 0.40, 0.50],
+      "role":       "Keyboard hint text (Undo/Reset/Pause shortcuts). Most recessive text in the UI.",
+      "source":     "Game.gd _draw_hud() hint_col",
+      "delta_e_tolerance": 8,
+      "wcag_note":  "Intentionally below WCAG AA — these are secondary affordance hints, not primary content."
     }
   ],
 
@@ -160,10 +233,22 @@
       "reason": "Target state change must be immediately obvious — core gameplay signal."
     },
     {
+      "a": "avoid_target_unlit",
+      "b": "avoid_target_lit",
+      "minimum_delta_e": 40,
+      "reason": "Avoid-target state change must be strongly alarming — win is blocked."
+    },
+    {
       "a": "observer",
       "b": "ray_beam",
       "minimum_delta_e": 5,
       "reason": "Observer and ray must be distinguishable so the piece is not confused with the ray."
+    },
+    {
+      "a": "overlay_card_bg",
+      "b": "background",
+      "minimum_delta_e": 6,
+      "reason": "Overlay card must be clearly distinct from the gameplay background it overlays."
     }
   ]
 }

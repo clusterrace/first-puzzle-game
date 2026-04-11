@@ -1,5 +1,5 @@
 # MANIFEST.yaml — Reference image manifest for Sight Lines art direction
-# Version: 1.0  KAMA-44
+# Version: 2.0  KAMA-66
 #
 # This file catalogues all images in design/art/reference/.
 # Statuses:
@@ -19,14 +19,14 @@
 
 _meta:
   game: Sight Lines
-  version: "1.0"
-  authored: KAMA-44
+  version: "2.0"
+  authored: KAMA-66
 
 images:
 
   # ── Palette reference swatches ────────────────────────────────────────────────
   #
-  # These are to be programmatically generated PNG swatches from palette.json,
+  # To be programmatically generated PNG swatches from palette.json,
   # one swatch per palette role, 200×200 px solid fill.
   # Status: placeholder — awaiting Technical Artist (verify_art_direction.py)
   # or QA Tester generation pass.
@@ -34,9 +34,10 @@ images:
   - filename: "palette_swatches.png"
     status: placeholder
     description: >
-      200×200 px solid-fill swatches for all 13 palette roles, arranged in a
-      grid. Generated from palette.json hex values. Used as ground truth for
-      delta-E calibration in the verification pipeline.
+      200×200 px solid-fill swatches for all palette roles defined in
+      palette.json, arranged in a grid. Generated from hex values. Used as
+      ground truth for delta-E calibration in the verification pipeline.
+      v2.0 palette has 20 entries (13 gameplay + 7 overlay/affordance).
     captured_by: null
     date: null
     rubric_ids: []
@@ -49,6 +50,9 @@ images:
   # Golden captures live in golden_captures/ (populated by QA Tester follow-up).
   # These reference/ images are conceptual / wireframe references, not golden
   # pixel captures.
+  #
+  # Capture viewport: 760×580 px (project.godot baseline).
+  # Headless render: xvfb-run + write-movie on host 192.168.0.30 (Godot 4.6.2).
 
   - filename: "gameplay_idle_level01.png"
     status: placeholder
@@ -60,8 +64,9 @@ images:
     date: null
     rubric_ids: [R-TGT-01, R-SHAPE-01, R-LAYOUT-01, R-LAYOUT-02, R-OVERALL-01, R-OVERALL-02]
     notes: >
-      Capture using xvfb-run + write-movie method (see project_visual_validation.md memory).
-      Headless render on host 192.168.0.30 (Godot 4.6.2).
+      Capture using xvfb-run + write-movie method (see project memory
+      project_visual_validation.md). Headless render on host 192.168.0.30.
+      Viewport: 760×580 px.
 
   - filename: "gameplay_ray_active.png"
     status: placeholder
@@ -80,14 +85,13 @@ images:
     status: placeholder
     description: >
       Screenshot immediately after win condition achieved: all targets lit,
-      win pulse animation active. Authoritative for: win pulse visual,
-      win state green (#38FF73) presence check.
+      level-complete overlay visible with win pulse animation.
     captured_by: null
     date: null
     rubric_ids: [R-WIN-02]
     notes: >
-      Capture at the moment win_pulse = 1.0. The pulse is time-based so
-      capture within 1–2 frames of win signal.
+      Capture with level-complete overlay visible (LevelCompleteOverlay.gd).
+      The animated glow halo and sparkles should be rendering.
 
   - filename: "main_menu.png"
     status: placeholder
@@ -103,8 +107,10 @@ images:
     status: placeholder
     description: >
       Level complete overlay over the solved puzzle. Authoritative for:
-      win state green presence, level complete visual.
+      win state green presence, level complete visual, overlay card appearance.
     captured_by: null
     date: null
     rubric_ids: [R-WIN-02]
-    notes: null
+    notes: >
+      The overlay should show the card with animated green border and sparkles.
+      Capture a few frames in to ensure animation is active.

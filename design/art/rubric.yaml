@@ -1,5 +1,8 @@
 # rubric.yaml — VLM (vision-language model) rubric for Sight Lines art QA
-# Version: 1.0  KAMA-44
+# Version: 2.0  KAMA-66
+# Supersedes v1.0 (KAMA-44). Changes: version bump, R-WIN-02 updated to
+# describe the level-complete overlay animation (not TargetRenderer pulse);
+# R-SHAPE-02 upgraded from advisory to warning (direction is a core mechanic).
 # Band: 3_holistic — advisory only. Results are NON-BLOCKING by default.
 #
 # Protocol:
@@ -27,8 +30,8 @@
 
 _meta:
   game: Sight Lines
-  version: "1.0"
-  authored: KAMA-44
+  version: "2.0"
+  authored: KAMA-66
   band: 3_holistic
   advisory_by_default: true
 
@@ -100,19 +103,24 @@ items:
     references: []
     severity: warning
     notes: >
-      Win state green (#38FF73) must be absent during normal gameplay. Its
-      presence before a win event is a color-bleed defect.
+      Win state green (#38FF73) must be absent during normal pre-win gameplay.
+      Its presence before a win event is a color-bleed defect. Note: this check
+      MUST NOT run on level_complete or gameplay_win scenes where green is
+      intentional.
 
   - id: R-WIN-02
     question: >
-      Do the target tiles display a pulsing or animated ring effect that
-      suggests celebration or victory? Answer yes or no.
-    applies_to_scenes: [gameplay_win, level_complete]
+      Is there a bright green glowing overlay card visible on screen, with
+      animated sparkle particles and a pulsing green border, indicating that
+      a level has been completed? Answer yes or no.
+    applies_to_scenes: [level_complete]
     references: []
     severity: advisory
     notes: >
-      The win_pulse shader animation produces an expanding concentric ring.
-      This checks that the win state is visually distinct from idle.
+      The LevelCompleteOverlay renders: a full-screen scrim, sparkle particles,
+      an animated glow halo and pulsing border around the card (all using
+      #38FF73), and the heading "Level Complete!" or "All Puzzles Solved!".
+      This checks that the win celebration is visually present.
 
   # ── Shape language ────────────────────────────────────────────────────────────
 
@@ -137,8 +145,9 @@ items:
     references: []
     severity: warning
     notes: >
-      The observer is drawn as a circle with a line+dot pointer. The
-      direction must be readable — it is the primary orientation cue.
+      The observer is drawn as a circle with a line+dot pointer. The direction
+      must be readable — it is the primary orientation cue. Upgraded to warning
+      (v2.0) because directional clarity is a core mechanic requirement.
 
   # ── Layout ────────────────────────────────────────────────────────────────────
 
@@ -151,9 +160,9 @@ items:
     references: []
     severity: advisory
     notes: >
-      Checks that the piece inventory is visible and not overlapping the grid.
-      The verification pipeline should supply a gameplay screenshot with unplaced
-      pieces in the hand.
+      The hand display appears to the right of the grid. Checks that the piece
+      inventory is visible and not overlapping the grid. Supply a gameplay
+      screenshot with unplaced pieces in the hand.
 
   - id: R-LAYOUT-02
     question: >
